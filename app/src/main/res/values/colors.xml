@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="primary_blue">#4263EB</color>       <color name="primary_dark">#364FC7</color>       <color name="accent_blue">#D0EBFF</color>        <color name="background_white">#F8F9FA</color>   <color name="white">#FFFFFF</color>
+
+    <color name="text_title">#1A1B1E</color>         <color name="text_secondary">#868E96</color>     <color name="success_green">#20C997</color>      <color name="success_bg">#E6FCF5</color>         </resources>
