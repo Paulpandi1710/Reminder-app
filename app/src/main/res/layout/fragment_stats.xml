@@ -3,125 +3,232 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?android:attr/colorBackground"
+    android:background="#080818"
     android:fillViewport="true">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="24dp">
+        android:paddingHorizontal="20dp"
+        android:paddingTop="28dp"
+        android:paddingBottom="110dp">
 
+        <!-- Header -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:fontFamily="sans-serif-black"
             android:text="Performance"
-            android:textColor="?android:attr/textColorPrimary"
-            android:textSize="32sp" />
+            android:textColor="#EEEEFF"
+            android:textSize="36sp"
+            android:letterSpacing="-0.03" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="24dp"
-            android:text="Your All-Time Analytics"
-            android:textColor="?android:attr/textColorSecondary"
-            android:textSize="14sp" />
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="28dp"
+            android:text="Your all-time analytics"
+            android:textColor="#445588"
+            android:textSize="13sp" />
 
+        <!-- ═══════════════════════════════════════════════ -->
+        <!--              STAT CARDS ROW                     -->
+        <!-- ═══════════════════════════════════════════════ -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:baselineAligned="false"
-            android:layout_marginBottom="24dp">
+            android:layout_marginBottom="20dp">
 
+            <!-- Done Card -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:layout_marginEnd="8dp"
-                app:cardBackgroundColor="?attr/colorSurface"
-                app:cardCornerRadius="16dp"
+                android:layout_marginEnd="6dp"
+                app:cardBackgroundColor="@android:color/transparent"
+                app:cardCornerRadius="22dp"
                 app:cardElevation="0dp"
-                app:strokeColor="#20888888"
-                app:strokeWidth="1dp">
+                app:strokeWidth="0dp">
+
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:padding="16dp"
+                    android:background="@drawable/stat_card_green"
+                    android:padding="18dp"
                     android:gravity="center"
                     android:orientation="vertical">
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="DONE" android:textSize="10sp" android:textStyle="bold" android:textColor="#20C997"/>
-                    <TextView android:id="@+id/tvStatsDone" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0" android:textSize="24sp" android:textStyle="bold" android:textColor="?android:attr/textColorPrimary"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="✓"
+                        android:textSize="22sp"
+                        android:textColor="#20C997"
+                        android:layout_marginBottom="8dp"/>
+
+                    <TextView
+                        android:id="@+id/tvStatsDone"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textSize="32sp"
+                        android:textStyle="bold"
+                        android:textColor="#EEEEFF"
+                        android:letterSpacing="-0.03"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="DONE"
+                        android:textSize="10sp"
+                        android:letterSpacing="0.12"
+                        android:textStyle="bold"
+                        android:textColor="#20C997"/>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- Pending Card -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:layout_marginHorizontal="4dp"
-                app:cardBackgroundColor="?attr/colorSurface"
-                app:cardCornerRadius="16dp"
+                android:layout_marginHorizontal="3dp"
+                app:cardBackgroundColor="@android:color/transparent"
+                app:cardCornerRadius="22dp"
                 app:cardElevation="0dp"
-                app:strokeColor="#20888888"
-                app:strokeWidth="1dp">
+                app:strokeWidth="0dp">
+
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:padding="16dp"
+                    android:background="@drawable/stat_card_amber"
+                    android:padding="18dp"
                     android:gravity="center"
                     android:orientation="vertical">
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="PENDING" android:textSize="10sp" android:textStyle="bold" android:textColor="#F59F00"/>
-                    <TextView android:id="@+id/tvStatsPending" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0" android:textSize="24sp" android:textStyle="bold" android:textColor="?android:attr/textColorPrimary"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="⏳"
+                        android:textSize="22sp"
+                        android:layout_marginBottom="8dp"/>
+
+                    <TextView
+                        android:id="@+id/tvStatsPending"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textSize="32sp"
+                        android:textStyle="bold"
+                        android:textColor="#EEEEFF"
+                        android:letterSpacing="-0.03"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="PENDING"
+                        android:textSize="10sp"
+                        android:letterSpacing="0.12"
+                        android:textStyle="bold"
+                        android:textColor="#F59F00"/>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- Success % Card -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:layout_marginStart="8dp"
-                app:cardBackgroundColor="?attr/colorSurface"
-                app:cardCornerRadius="16dp"
+                android:layout_marginStart="6dp"
+                app:cardBackgroundColor="@android:color/transparent"
+                app:cardCornerRadius="22dp"
                 app:cardElevation="0dp"
-                app:strokeColor="#20888888"
-                app:strokeWidth="1dp">
+                app:strokeWidth="0dp">
+
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:padding="16dp"
+                    android:background="@drawable/stat_card_blue"
+                    android:padding="18dp"
                     android:gravity="center"
                     android:orientation="vertical">
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="SUCCESS %" android:textSize="10sp" android:textStyle="bold" android:textColor="#4263EB"/>
-                    <TextView android:id="@+id/tvStatsRate" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0%" android:textSize="24sp" android:textStyle="bold" android:textColor="?android:attr/textColorPrimary"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🎯"
+                        android:textSize="22sp"
+                        android:layout_marginBottom="8dp"/>
+
+                    <TextView
+                        android:id="@+id/tvStatsRate"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0%"
+                        android:textSize="32sp"
+                        android:textStyle="bold"
+                        android:textColor="#EEEEFF"
+                        android:letterSpacing="-0.03"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="SUCCESS"
+                        android:textSize="10sp"
+                        android:letterSpacing="0.12"
+                        android:textStyle="bold"
+                        android:textColor="#4263EB"/>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
+
         </LinearLayout>
 
+        <!-- ═══════════════════════════════════════════════ -->
+        <!--               BAR CHART CARD                    -->
+        <!-- ═══════════════════════════════════════════════ -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="300dp"
-            app:cardBackgroundColor="?attr/colorSurface"
-            app:cardCornerRadius="20dp"
+            app:cardBackgroundColor="#111128"
+            app:cardCornerRadius="24dp"
             app:cardElevation="0dp"
-            app:strokeColor="#20888888"
+            app:strokeColor="#1A2244"
             app:strokeWidth="1dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:orientation="vertical"
-                android:padding="16dp">
+                android:padding="20dp">
 
-                <TextView
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
-                    android:text="Completion by Category"
-                    android:textColor="?android:attr/textColorPrimary"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="20dp">
+
+                    <View
+                        android:layout_width="4dp"
+                        android:layout_height="20dp"
+                        android:background="@drawable/tab_selected_bg"
+                        android:layout_marginEnd="10dp"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Completion by Category"
+                        android:textColor="#EEEEFF"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
 
                 <com.github.mikephil.charting.charts.BarChart
                     android:id="@+id/barChart"

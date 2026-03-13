@@ -4,35 +4,46 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginTop="12dp"
+    android:layout_marginTop="8dp"
     android:layout_marginBottom="4dp"
-    app:cardCornerRadius="20dp"
-    app:cardElevation="2dp"
-    app:strokeColor="#20888888"
+    app:cardCornerRadius="22dp"
+    app:cardElevation="0dp"
+    app:strokeColor="#1A2244"
     app:strokeWidth="1dp"
-    app:cardBackgroundColor="?attr/colorSurface">
+    app:cardBackgroundColor="#111128">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:padding="20dp">
+        android:padding="18dp">
 
-        <ImageView
-            android:id="@+id/ivCheck"
+        <!-- Check button with glow ring -->
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:background="@drawable/circle_bg_light"
-            android:padding="12dp"
-            android:src="@drawable/ic_check"
-            app:tint="?android:attr/textColorTertiary" />
+            app:cardCornerRadius="24dp"
+            app:cardElevation="0dp"
+            app:strokeColor="#223366"
+            app:strokeWidth="1dp"
+            app:cardBackgroundColor="#0D1540">
+
+            <ImageView
+                android:id="@+id/ivCheck"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:padding="13dp"
+                android:src="@drawable/ic_check"
+                app:tint="#4263EB" />
+
+        </com.google.android.material.card.MaterialCardView>
 
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginStart="16dp"
+            android:layout_marginStart="14dp"
             android:orientation="vertical">
 
             <TextView
@@ -40,27 +51,39 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Task Title"
-                android:textColor="?android:attr/textColorPrimary"
-                android:textSize="16sp"
-                android:textStyle="bold" />
+                android:textColor="#EEEEFF"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:letterSpacing="-0.01" />
 
             <TextView
                 android:id="@+id/tvTime"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
+                android:layout_marginTop="4dp"
                 android:text="09:00 AM"
-                android:textColor="?android:attr/textColorSecondary"
+                android:textColor="#445588"
                 android:textSize="12sp" />
         </LinearLayout>
 
-        <ImageView
-            android:id="@+id/ivDelete"
+        <!-- Edit/settings button -->
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="36dp"
             android:layout_height="36dp"
-            android:padding="8dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_settings"
-            app:tint="#FA5252" />
+            app:cardCornerRadius="18dp"
+            app:cardElevation="0dp"
+            app:strokeWidth="0dp"
+            app:cardBackgroundColor="#1A1A35">
+
+            <ImageView
+                android:id="@+id/ivDelete"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:padding="9dp"
+                android:src="@drawable/ic_settings"
+                app:tint="#4263EB" />
+
+        </com.google.android.material.card.MaterialCardView>
+
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

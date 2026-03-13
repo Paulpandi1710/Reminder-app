@@ -6,14 +6,13 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?android:attr/colorBackground"
+    android:background="#080818"
     tools:context=".MainActivity">
 
     <androidx.fragment.app.FragmentContainerView
         android:id="@+id/fragment_container"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_marginBottom="80dp"
         tools:layout="@layout/fragment_home" />
 
     <com.google.android.material.bottomappbar.BottomAppBar
@@ -24,8 +23,8 @@
         app:fabCradleMargin="8dp"
         app:fabCradleRoundedCornerRadius="16dp"
         app:fabAlignmentMode="center"
-        android:backgroundTint="?android:attr/colorBackground"
-        app:elevation="8dp">
+        android:backgroundTint="#0D0D20"
+        app:elevation="12dp">
 
         <com.google.android.material.bottomnavigation.BottomNavigationView
             android:id="@+id/bottomNavigationView"
@@ -33,8 +32,8 @@
             android:layout_height="wrap_content"
             android:background="@android:color/transparent"
             app:menu="@menu/bottom_nav_menu"
-            app:itemIconTint="#868E96"
-            app:itemTextColor="#868E96"
+            app:itemIconTint="@drawable/selector_nav_icon"
+            app:itemTextColor="@drawable/selector_nav_icon"
             app:labelVisibilityMode="labeled"
             app:elevation="0dp" />
 

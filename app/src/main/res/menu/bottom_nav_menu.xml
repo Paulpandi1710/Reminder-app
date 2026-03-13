@@ -1,27 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
+
     <item
         android:id="@+id/nav_home"
         android:icon="@drawable/ic_home"
-        android:title="Home" />
+        android:title="Home"/>
 
     <item
         android:id="@+id/nav_planner"
         android:icon="@drawable/ic_calendar"
-        android:title="Planner" />
+        android:title="Planner"/>
 
-    <item
-        android:id="@+id/nav_placeholder"
-        android:title=""
-        android:enabled="false" />
+    <!-- FAB placeholder — keeps center spacing -->
+    <!-- The actual FAB is in activity_main.xml anchored to BottomAppBar -->
 
     <item
         android:id="@+id/nav_stats"
         android:icon="@drawable/ic_stats"
-        android:title="Stats" />
+        android:title="Stats"/>
+
+    <item
+        android:id="@+id/nav_ai"
+        android:icon="@drawable/ic_timer"
+        android:title="AI"/>
 
     <item
         android:id="@+id/nav_settings"
         android:icon="@drawable/ic_settings"
-        android:title="Settings" />
+        android:title="Settings"/>
+
 </menu>

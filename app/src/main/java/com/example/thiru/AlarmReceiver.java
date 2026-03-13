@@ -12,85 +12,106 @@ import androidx.core.app.NotificationCompat;
 
 public class AlarmReceiver extends BroadcastReceiver {
 
-    private static final String CHANNEL_ID = "focusflow_alarms";
+    private static final String CHANNEL_ID = "focusflow_alarms_v5";
 
     @Override
     public void onReceive(Context context, Intent intent) {
-        SharedPreferences prefs = context.getSharedPreferences("AppPrefs", Context.MODE_PRIVATE);
+        SharedPreferences prefs = context.getSharedPreferences(
+                "AppPrefs", Context.MODE_PRIVATE);
 
-        // --- THE ULTIMATE KILL SWITCH ---
+        // Kill switch
         boolean pushNotifs = prefs.getBoolean("pushNotifs", true);
-        if (!pushNotifs) {
-            return; // Instantly abort. No alarms, no notifications, total silence.
-        }
+        if (!pushNotifs) return;
 
+        // Safe title extraction
         String taskTitle = intent.getStringExtra("TASK_TITLE");
-        boolean isPreWarning = intent.getBooleanExtra("IS_PRE_WARNING", false);
-        if (taskTitle == null) taskTitle = "Upcoming Task";
+        if (taskTitle == null || taskTitle.isEmpty()) taskTitle = "Your Task";
 
-        // --- FETCH THE CUSTOM NAME FROM SETTINGS ---
-        String userName = prefs.getString("user_name", "Champion");
-        String personalAlert = "Time to Focus, " + userName + "!";
-
-        boolean isAlarmEnabled = prefs.getBoolean("enable_alarm_screen", true);
+        boolean isPreWarning     = intent.getBooleanExtra("IS_PRE_WARNING", false);
+        boolean isAlarmEnabled   = prefs.getBoolean("enable_alarm_screen", true);
         boolean isVibrateEnabled = prefs.getBoolean("enable_vibration", true);
+        String userName          = prefs.getString("user_name", "Champion");
 
-        NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        // Save title as backup so AlarmScreenActivity can
+        // always retrieve it even if intent extras are dropped
+        prefs.edit().putString("current_alarm_title", taskTitle).apply();
+
+        // ── Build notification channel ────────────────────
+        NotificationManager nm = (NotificationManager)
+                context.getSystemService(Context.NOTIFICATION_SERVICE);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Alarms", NotificationManager.IMPORTANCE_HIGH);
+            NotificationChannel channel = new NotificationChannel(
+                    CHANNEL_ID,
+                    "Focus Alarms",
+                    NotificationManager.IMPORTANCE_HIGH);
             channel.setBypassDnd(true);
-            if (isVibrateEnabled) channel.enableVibration(true);
+            channel.enableVibration(isVibrateEnabled);
             nm.createNotificationChannel(channel);
         }
 
+        // Tap notification → open MainActivity safely
         Intent tapIntent = new Intent(context, MainActivity.class);
-        PendingIntent tapPi = PendingIntent.getActivity(context, 0, tapIntent, PendingIntent.FLAG_IMMUTABLE);
+        tapIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        PendingIntent tapPi = PendingIntent.getActivity(
+                context, 0, tapIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
+        // ════════════════════════════════════════════════
+        // PRE-WARNING NOTIFICATION (1 hour before)
+        // ════════════════════════════════════════════════
         if (isPreWarning) {
-            NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
-                    .setSmallIcon(R.drawable.ic_timer)
-                    .setContentTitle("Starting in 1 hour, " + userName) // Personalized Pre-warning
-                    .setContentText(taskTitle)
-                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                    .setContentIntent(tapPi)
-                    .setAutoCancel(true)
-                    .setDefaults(isVibrateEnabled ? NotificationCompat.DEFAULT_ALL : NotificationCompat.DEFAULT_SOUND);
-
+            NotificationCompat.Builder builder =
+                    new NotificationCompat.Builder(context, CHANNEL_ID)
+                            .setSmallIcon(R.drawable.ic_timer)
+                            .setContentTitle("Starting in 1 hour, " + userName)
+                            .setContentText(taskTitle)
+                            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                            .setContentIntent(tapPi)
+                            .setAutoCancel(true)
+                            .setDefaults(isVibrateEnabled
+                                    ? NotificationCompat.DEFAULT_ALL
+                                    : NotificationCompat.DEFAULT_SOUND);
             nm.notify((int) System.currentTimeMillis(), builder.build());
+            return;
+        }
+
+        // ════════════════════════════════════════════════
+        // MAIN ALARM
+        // ════════════════════════════════════════════════
+        if (isAlarmEnabled) {
+
+            // ── THE CORRECT FIX FOR ALL ANDROID VERSIONS ──
+            // Start AlarmService as a FOREGROUND SERVICE.
+            // The service plays sound + vibration + launches
+            // AlarmScreenActivity. This works on Android
+            // 13, 14, 15, 16 because foreground services
+            // ARE allowed to launch activities.
+            Intent serviceIntent = new Intent(context, AlarmService.class);
+            serviceIntent.putExtra("TASK_TITLE", taskTitle);
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                // Must use startForegroundService on Android 8+
+                context.startForegroundService(serviceIntent);
+            } else {
+                context.startService(serviceIntent);
+            }
 
         } else {
-            if (isAlarmEnabled) {
-                // If Full Screen Alarm is ON
-                Intent fullScreenIntent = new Intent(context, AlarmScreenActivity.class);
-                fullScreenIntent.putExtra("TASK_TITLE", taskTitle);
-                fullScreenIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-
-                PendingIntent fullScreenPi = PendingIntent.getActivity(context, (int) System.currentTimeMillis(), fullScreenIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-
-                NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
-                        .setSmallIcon(R.drawable.ic_timer)
-                        .setContentTitle(personalAlert) // Personalized Title
-                        .setContentText(taskTitle + " is starting now.")
-                        .setPriority(NotificationCompat.PRIORITY_MAX)
-                        .setCategory(NotificationCompat.CATEGORY_ALARM)
-                        .setFullScreenIntent(fullScreenPi, true)
-                        .setAutoCancel(true);
-                nm.notify((int) System.currentTimeMillis(), builder.build());
-
-            } else {
-                // If Full Screen Alarm is OFF (Just standard drop-down)
-                NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
-                        .setSmallIcon(R.drawable.ic_timer)
-                        .setContentTitle(personalAlert) // Personalized Title
-                        .setContentText(taskTitle + " is starting now.")
-                        .setPriority(NotificationCompat.PRIORITY_MAX)
-                        .setContentIntent(tapPi)
-                        .setAutoCancel(true)
-                        .setDefaults(isVibrateEnabled ? NotificationCompat.DEFAULT_ALL : NotificationCompat.DEFAULT_SOUND);
-
-                nm.notify((int) System.currentTimeMillis(), builder.build());
-            }
+            // Alarm screen disabled by user — show silent notification only
+            NotificationCompat.Builder builder =
+                    new NotificationCompat.Builder(context, CHANNEL_ID)
+                            .setSmallIcon(R.drawable.ic_timer)
+                            .setContentTitle("Time to Focus, " + userName + "!")
+                            .setContentText(taskTitle + " is starting now.")
+                            .setPriority(NotificationCompat.PRIORITY_MAX)
+                            .setContentIntent(tapPi)
+                            .setAutoCancel(true)
+                            .setDefaults(isVibrateEnabled
+                                    ? NotificationCompat.DEFAULT_ALL
+                                    : NotificationCompat.DEFAULT_SOUND);
+            nm.notify((int) System.currentTimeMillis(), builder.build());
         }
     }
 }

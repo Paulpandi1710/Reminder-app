@@ -68,10 +68,14 @@ public class StatsFragment extends Fragment {
 
                     if (items != null) {
                         for (ActionItem item : items) {
-                            totalItems++;
+                            if (!item.type.equals("history_routine")) {
+                                totalItems++;
+                            }
+
                             if (item.isCompleted) {
                                 totalCompleted++;
-                                if ("routines".equals(item.type)) routinesCompleted++;
+                                // STATS ENGINE: Now counts the history clones perfectly!
+                                if ("routines".equals(item.type) || "history_routine".equals(item.type)) routinesCompleted++;
                                 if ("tasks".equals(item.type)) tasksCompleted++;
                             }
                             if (item.isPending) {
@@ -80,13 +84,11 @@ public class StatsFragment extends Fragment {
                         }
                     }
 
-                    // Feed the Top Cards
                     tvStatsDone.setText(String.valueOf(totalCompleted));
                     tvStatsPending.setText(String.valueOf(totalPending));
                     int successRate = (totalItems == 0) ? 0 : (totalCompleted * 100) / totalItems;
                     tvStatsRate.setText(successRate + "%");
 
-                    // Feed the Chart
                     ArrayList<BarEntry> entries = new ArrayList<>();
                     entries.add(new BarEntry(0f, routinesCompleted));
                     entries.add(new BarEntry(1f, tasksCompleted));

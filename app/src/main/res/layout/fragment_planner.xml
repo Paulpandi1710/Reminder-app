@@ -1,63 +1,226 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?android:attr/colorBackground"
+    android:background="#080818"
     android:orientation="vertical">
 
+    <!-- ═══════════════════════════════════════════════ -->
+    <!--                HEADER                           -->
+    <!-- ═══════════════════════════════════════════════ -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="24dp">
+        android:paddingHorizontal="24dp"
+        android:paddingTop="28dp"
+        android:paddingBottom="16dp">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:fontFamily="sans-serif-black"
-            android:text="Daily Planner"
-            android:textColor="?android:attr/textColorPrimary"
-            android:textSize="32sp" />
+            android:text="Planner"
+            android:textColor="#EEEEFF"
+            android:textSize="36sp"
+            android:letterSpacing="-0.03"/>
 
-        <TextView
-            android:id="@+id/tvCurrentMonthYear"
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:text="Month Year"
-            android:textColor="#4263EB"
-            android:textSize="16sp"
-            android:textStyle="bold" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <View
+                android:layout_width="16dp"
+                android:layout_height="3dp"
+                android:background="@drawable/tab_selected_bg"
+                android:layout_marginEnd="8dp"/>
+
+            <TextView
+                android:id="@+id/tvCurrentMonthYear"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Month Year"
+                android:textColor="#4263EB"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.04"/>
+        </LinearLayout>
 
         <TextView
             android:id="@+id/tvCurrentDateHeader"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
             android:text="Day, Date"
-            android:textColor="?android:attr/textColorSecondary"
-            android:textSize="14sp" />
+            android:textColor="#445588"
+            android:textSize="13sp"/>
     </LinearLayout>
 
+    <!-- ═══════════════════════════════════════════════ -->
+    <!--          HORIZONTAL DATE STRIP                  -->
+    <!-- ═══════════════════════════════════════════════ -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvDates"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:clipToPadding="false"
         android:paddingHorizontal="16dp"
-        android:paddingBottom="16dp" />
+        android:paddingBottom="8dp"/>
 
+    <!-- ═══════════════════════════════════════════════ -->
+    <!--   CALENDAR EVENTS SECTION                       -->
+    <!--   Visibility toggled in PlannerFragment.java    -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <LinearLayout
+        android:id="@+id/layoutCalendarSection"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="16dp"
+        android:paddingBottom="4dp"
+        android:visibility="gone">
+
+        <!-- Section header -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingVertical="8dp">
+
+            <TextView
+                android:id="@+id/tvCalendarSectionTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="📅  Calendar Events"
+                android:textColor="#EEEEFF"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.04"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="from device"
+                android:textColor="#223366"
+                android:textSize="10sp"/>
+        </LinearLayout>
+
+        <!-- Permission banner -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/layoutCalendarPermission"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="6dp"
+            android:visibility="gone"
+            app:cardBackgroundColor="#0A0A1E"
+            app:cardCornerRadius="14dp"
+            app:cardElevation="0dp"
+            app:strokeColor="#1A2244"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:padding="14dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="📅  See your meetings here"
+                        android:textColor="#EEEEFF"
+                        android:textSize="13sp"
+                        android:textStyle="bold"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="3dp"
+                        android:text="Allow calendar access to show events"
+                        android:textColor="#445588"
+                        android:textSize="11sp"/>
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/btnGrantCalendarPermission"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:text="Allow"
+                    android:textColor="#4263EB"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:paddingHorizontal="16dp"
+                    android:paddingVertical="8dp"
+                    android:background="@drawable/rounded_input_bg"
+                    android:backgroundTint="#152244"/>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Event cards injected here programmatically -->
+        <LinearLayout
+            android:id="@+id/layoutCalendarEvents"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone"/>
+
+        <!-- Thin divider below calendar section -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="8dp"
+            android:background="#0D1A33"/>
+
+    </LinearLayout>
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!--   "YOUR FLOWS" label above timeline             -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <TextView
+        android:id="@+id/tvFlowsLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="20dp"
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="6dp"
+        android:text="YOUR FLOWS"
+        android:textColor="#334466"
+        android:textSize="11sp"
+        android:letterSpacing="0.14"
+        android:textStyle="bold"/>
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!--   TIMELINE + EMPTY STATE                        -->
+    <!--   FrameLayout fills remaining space — correct   -->
+    <!-- ═══════════════════════════════════════════════ -->
     <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="0dp"
+        android:layout_weight="1">
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvTimeline"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:clipToPadding="false"
-            android:padding="16dp"
-            android:paddingBottom="100dp" />
+            android:paddingHorizontal="16dp"
+            android:paddingBottom="110dp"/>
 
+        <!-- Empty state -->
         <LinearLayout
             android:id="@+id/layoutEmptyState"
             android:layout_width="match_parent"
@@ -65,21 +228,44 @@
             android:layout_gravity="center"
             android:gravity="center"
             android:orientation="vertical"
-            android:visibility="gone">
+            android:visibility="gone"
+            android:padding="40dp">
 
-            <ImageView
+            <com.google.android.material.card.MaterialCardView
                 android:layout_width="80dp"
                 android:layout_height="80dp"
-                android:src="@drawable/ic_calendar"
-                app:tint="?android:attr/textColorTertiary" xmlns:app="http://schemas.android.com/apk/res-auto" />
+                app:cardCornerRadius="40dp"
+                app:cardElevation="0dp"
+                app:strokeWidth="0dp"
+                app:cardBackgroundColor="#111128">
+
+                <ImageView
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:padding="22dp"
+                    android:src="@drawable/ic_calendar"
+                    app:tint="#334466"/>
+            </com.google.android.material.card.MaterialCardView>
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:text="No flows scheduled."
-                android:textColor="?android:attr/textColorSecondary"
-                android:textSize="16sp" />
+                android:layout_marginTop="20dp"
+                android:text="Nothing Scheduled"
+                android:textColor="#EEEEFF"
+                android:textSize="18sp"
+                android:textStyle="bold"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="Tap + to add a routine or task"
+                android:textColor="#445588"
+                android:textSize="13sp"
+                android:gravity="center"/>
         </LinearLayout>
+
     </FrameLayout>
+
 </LinearLayout>

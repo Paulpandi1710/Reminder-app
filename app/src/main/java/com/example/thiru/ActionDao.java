@@ -23,6 +23,9 @@ public interface ActionDao {
     @Query("SELECT * FROM action_table ORDER BY id DESC")
     LiveData<List<ActionItem>> getAllItems();
 
+    @Query("SELECT * FROM action_table ORDER BY id DESC")
+    List<ActionItem> getAllItemsSync();
+
     @Query("SELECT * FROM action_table WHERE type = :type ORDER BY id DESC")
     LiveData<List<ActionItem>> getItemsByType(String type);
 
@@ -32,7 +35,7 @@ public interface ActionDao {
     @Query("SELECT * FROM action_table WHERE isPending = 1 ORDER BY id DESC")
     LiveData<List<ActionItem>> getPendingItems();
 
-    // --- NEW: FOR THE BOOT RECEIVER ---
+    // --- FOR THE BOOT RECEIVER ---
     // Grabs only the tasks that haven't been completed or missed yet.
     @Query("SELECT * FROM action_table WHERE isCompleted = 0 AND isPending = 0")
     List<ActionItem> getActiveTasksSync();

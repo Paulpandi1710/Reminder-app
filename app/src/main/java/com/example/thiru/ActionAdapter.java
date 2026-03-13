@@ -5,16 +5,20 @@ import android.graphics.Paint;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.animation.AnimationUtils; // <-- THIS FIXES THE ERROR!
+import android.view.animation.AnimationUtils;
 import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class ActionAdapter extends RecyclerView.Adapter<ActionAdapter.ActionViewHolder> {
 
+    // masterList holds ALL items from DB untouched
+    // actionItems holds the currently DISPLAYED (filtered) items
+    private List<ActionItem> masterList = new ArrayList<>();
     private List<ActionItem> actionItems = new ArrayList<>();
     private OnItemClickListener listener;
 
@@ -27,9 +31,44 @@ public class ActionAdapter extends RecyclerView.Adapter<ActionAdapter.ActionView
         this.listener = listener;
     }
 
+    // Called by LiveData observer — always updates master + displayed list
     public void setItems(List<ActionItem> items) {
-        this.actionItems = items;
+        this.masterList = new ArrayList<>(items);
+        this.actionItems = new ArrayList<>(items);
         notifyDataSetChanged();
+    }
+
+    // Called by search bar text watcher — filters displayed list only
+    public void filter(String query) {
+        if (query == null || query.trim().isEmpty()) {
+            // No search active — show full list
+            actionItems = new ArrayList<>(masterList);
+        } else {
+            String lowerQuery = query.toLowerCase().trim();
+            List<ActionItem> filtered = new ArrayList<>();
+            for (ActionItem item : masterList) {
+                if (item.title != null && item.title.toLowerCase().contains(lowerQuery)) {
+                    filtered.add(item);
+                } else if (item.description != null && item.description.toLowerCase().contains(lowerQuery)) {
+                    filtered.add(item);
+                } else if (item.timeString != null && item.timeString.toLowerCase().contains(lowerQuery)) {
+                    filtered.add(item);
+                }
+            }
+            actionItems = filtered;
+        }
+        notifyDataSetChanged();
+    }
+
+    // Helper method for Swiping
+    public ActionItem getItemAt(int position) {
+        return actionItems.get(position);
+    }
+
+    // Helper method for Drag and Drop
+    public void moveItem(int fromPosition, int toPosition) {
+        Collections.swap(actionItems, fromPosition, toPosition);
+        notifyItemMoved(fromPosition, toPosition);
     }
 
     @NonNull
@@ -69,16 +108,11 @@ public class ActionAdapter extends RecyclerView.Adapter<ActionAdapter.ActionView
             if (listener != null) listener.onDeleteClicked(currentItem);
         });
 
-        // --- NEW: PREMIUM FADE & SLIDE UP ANIMATION ---
-        holder.itemView.setAlpha(0f);
-        holder.itemView.setTranslationY(50f);
-        holder.itemView.animate()
-                .alpha(1f)
-                .translationY(0f)
-                .setDuration(300)
-                .setStartDelay(position * 50L) // Creates a beautiful "cascading" waterfall effect
-                .start();
+        // Premium Slide-in Animation
+        holder.itemView.setAnimation(AnimationUtils.loadAnimation(
+                holder.itemView.getContext(), android.R.anim.slide_in_left));
     }
+
     @Override
     public int getItemCount() {
         return actionItems.size();

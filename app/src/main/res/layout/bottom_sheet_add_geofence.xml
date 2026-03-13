@@ -1,0 +1,267 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bottom_sheet_bg"
+    android:paddingHorizontal="24dp"
+    android:paddingTop="20dp"
+    android:paddingBottom="32dp">
+
+    <View
+        android:layout_width="40dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="20dp"
+        android:background="#334466"
+        android:backgroundTint="#334466"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="📍 Add Location Reminder"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="6dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Get notified when you arrive at this place"
+        android:textColor="#5566AA"
+        android:textSize="12sp"
+        android:layout_marginBottom="20dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="LOCATION NAME"
+        android:textColor="#5566AA"
+        android:textSize="10sp"
+        android:letterSpacing="0.12"
+        android:textStyle="bold"
+        android:layout_marginBottom="6dp"/>
+
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="0dp"
+        app:strokeWidth="1dp"
+        app:strokeColor="#1A2244"
+        app:cardBackgroundColor="#0E0E24">
+        <EditText
+            android:id="@+id/etGeoTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@null"
+            android:hint="e.g. Office, Gym, Home"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#334466"
+            android:textSize="14sp"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="14dp"
+            android:inputType="textCapSentences"
+            android:maxLines="1"/>
+    </com.google.android.material.card.MaterialCardView>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="REMINDER NOTE (optional)"
+        android:textColor="#5566AA"
+        android:textSize="10sp"
+        android:letterSpacing="0.12"
+        android:textStyle="bold"
+        android:layout_marginBottom="6dp"/>
+
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="0dp"
+        app:strokeWidth="1dp"
+        app:strokeColor="#1A2244"
+        app:cardBackgroundColor="#0E0E24">
+        <EditText
+            android:id="@+id/etGeoNote"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@null"
+            android:hint="e.g. Check Slack messages"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#334466"
+            android:textSize="14sp"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="14dp"
+            android:inputType="textCapSentences"
+            android:maxLines="2"/>
+    </com.google.android.material.card.MaterialCardView>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="COORDINATES"
+        android:textColor="#5566AA"
+        android:textSize="10sp"
+        android:letterSpacing="0.12"
+        android:textStyle="bold"
+        android:layout_marginBottom="6dp"/>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="12dp">
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="8dp"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:strokeWidth="1dp"
+            app:strokeColor="#1A2244"
+            app:cardBackgroundColor="#0E0E24">
+            <EditText
+                android:id="@+id/etGeoLat"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@null"
+                android:hint="Latitude"
+                android:textColor="#FFFFFF"
+                android:textColorHint="#334466"
+                android:textSize="13sp"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="12dp"
+                android:inputType="numberDecimal|numberSigned"
+                android:maxLines="1"/>
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:strokeWidth="1dp"
+            app:strokeColor="#1A2244"
+            app:cardBackgroundColor="#0E0E24">
+            <EditText
+                android:id="@+id/etGeoLng"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@null"
+                android:hint="Longitude"
+                android:textColor="#FFFFFF"
+                android:textColorHint="#334466"
+                android:textSize="13sp"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="12dp"
+                android:inputType="numberDecimal|numberSigned"
+                android:maxLines="1"/>
+        </com.google.android.material.card.MaterialCardView>
+    </LinearLayout>
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cardUseCurrentLocation"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginBottom="16dp"
+        android:clickable="true"
+        android:focusable="true"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="0dp"
+        app:strokeWidth="1dp"
+        app:strokeColor="#1A3A55"
+        app:cardBackgroundColor="#0A1A2A">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="horizontal"
+            android:gravity="center">
+
+            <TextView
+                android:id="@+id/tvUseLocationStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="📡 Use Current Location"
+                android:textColor="#20C997"
+                android:textSize="13sp"
+                android:textStyle="bold"/>
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="TRIGGER RADIUS"
+        android:textColor="#5566AA"
+        android:textSize="10sp"
+        android:letterSpacing="0.12"
+        android:textStyle="bold"
+        android:layout_marginBottom="8dp"/>
+
+    <LinearLayout
+        android:id="@+id/layoutRadiusChips"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="24dp">
+
+        <TextView android:id="@+id/chipRadius50"
+            android:layout_width="0dp" android:layout_height="36dp"
+            android:layout_weight="1" android:gravity="center"
+            android:text="50m" android:textSize="12sp" android:textStyle="bold"
+            android:textColor="#FFFFFF" android:layout_marginEnd="6dp"
+            android:background="@drawable/tab_selected_bg"/>
+
+        <TextView android:id="@+id/chipRadius100"
+            android:layout_width="0dp" android:layout_height="36dp"
+            android:layout_weight="1" android:gravity="center"
+            android:text="100m" android:textSize="12sp" android:textStyle="bold"
+            android:textColor="#445588" android:layout_marginEnd="6dp"
+            android:background="@drawable/rounded_input_bg"/>
+
+        <TextView android:id="@+id/chipRadius200"
+            android:layout_width="0dp" android:layout_height="36dp"
+            android:layout_weight="1" android:gravity="center"
+            android:text="200m" android:textSize="12sp" android:textStyle="bold"
+            android:textColor="#445588" android:layout_marginEnd="6dp"
+            android:background="@drawable/rounded_input_bg"/>
+
+        <TextView android:id="@+id/chipRadius500"
+            android:layout_width="0dp" android:layout_height="36dp"
+            android:layout_weight="1" android:gravity="center"
+            android:text="500m" android:textSize="12sp" android:textStyle="bold"
+            android:textColor="#445588"
+            android:background="@drawable/rounded_input_bg"/>
+    </LinearLayout>
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cardSaveGeofence"
+        android:layout_width="match_parent"
+        android:layout_height="54dp"
+        android:clickable="true"
+        android:focusable="true"
+        app:cardCornerRadius="18dp"
+        app:cardElevation="0dp"
+        app:cardBackgroundColor="#4263EB">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:text="📍 Save Location Reminder"
+            android:textColor="#FFFFFF"
+            android:textSize="15sp"
+            android:textStyle="bold"/>
+    </com.google.android.material.card.MaterialCardView>
+
+</LinearLayout>

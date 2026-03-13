@@ -41,7 +41,6 @@ public class TimelineAdapter extends RecyclerView.Adapter<TimelineAdapter.Timeli
 
         holder.tvTimelineTitle.setText(item.title);
 
-        // Feature: Duration Badge
         if (item.duration > 0) {
             holder.tvDurationBadge.setVisibility(View.VISIBLE);
             holder.tvDurationBadge.setText(item.duration + "m");
@@ -49,14 +48,12 @@ public class TimelineAdapter extends RecyclerView.Adapter<TimelineAdapter.Timeli
             holder.tvDurationBadge.setVisibility(View.GONE);
         }
 
-        // Feature: Color Coding
         String hexColor = item.type.equals("routines") ? "#4263EB" : "#F59F00";
         holder.tvTimelineType.setText(item.type.equals("routines") ? "ROUTINE" : "ONE-TIME TASK");
         holder.tvTimelineType.setTextColor(Color.parseColor(hexColor));
         holder.viewCategoryStripe.setBackgroundColor(Color.parseColor(hexColor));
         holder.ivTimelineDot.setColorFilter(Color.parseColor(hexColor));
 
-        // Feature: Completion Visuals
         if (item.isCompleted) {
             holder.cardTimelineItem.setAlpha(0.4f);
             holder.ivTimelineDot.setAlpha(0.4f);
@@ -65,7 +62,6 @@ public class TimelineAdapter extends RecyclerView.Adapter<TimelineAdapter.Timeli
             holder.ivTimelineDot.setAlpha(1.0f);
         }
 
-        // --- ULTRA PREMIUM SCALE & FADE ANIMATION ---
         holder.itemView.setAlpha(0f);
         holder.itemView.setScaleX(0.85f);
         holder.itemView.setScaleY(0.85f);
