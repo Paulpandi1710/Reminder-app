@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #080818; }
+        #map { width: 100vw; height: 100vh; }
+        #tap-hint {
+          position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+          background: rgba(8,8,24,0.85); color: #7B9BFF;
+          padding: 6px 16px; border-radius: 20px; font-size: 13px;
+          font-family: sans-serif; z-index: 999; pointer-events: none;
+          border: 1px solid #2A3A7E;
+        }
+    </style>
+</head>
+<body>
+<div id="tap-hint">📍 Tap anywhere to drop a pin</div>
+<div id="map"></div>
+<script>
+    var map = L.map('map', {
+      zoomControl: true,
+      attributionControl: false
+    }).setView([20.5937, 78.9629], 5);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    var marker = null;
+    var circle = null;
+
+    map.on('click', function(e) {
+      placeMarker(e.latlng.lat, e.latlng.lng);
+      if (typeof Android !== 'undefined') {
+        Android.onLocationSelected(e.latlng.lat, e.latlng.lng);
+      }
+    });
+
+    function placeMarker(lat, lng) {
+      if (marker) { map.removeLayer(marker); }
+      if (circle) { map.removeLayer(circle); }
+      marker = L.marker([lat, lng], {
+        icon: L.divIcon({
+          html: '<div style="background:#4263EB;width:20px;height:20px;border-radius:50%;border:3px solid white;box-shadow:0 0 10px rgba(66,99,235,0.8)"></div>',
+          iconAnchor: [10, 10], className: ''
+        })
+      }).addTo(map);
+      document.getElementById('tap-hint').style.display = 'none';
+    }
+
+    function setLocationFromAndroid(lat, lng, radius) {
+      placeMarker(lat, lng);
+      if (circle) { map.removeLayer(circle); }
+      circle = L.circle([lat, lng], {
+        radius: radius,
+        color: '#4263EB',
+        fillColor: '#4263EB',
+        fillOpacity: 0.15,
+        weight: 2
+      }).addTo(map);
+      map.setView([lat, lng], 15);
+    }
+
+    function updateRadius(radius) {
+      if (!marker) return;
+      if (circle) { map.removeLayer(circle); }
+      var pos = marker.getLatLng();
+      circle = L.circle([pos.lat, pos.lng], {
+        radius: radius,
+        color: '#4263EB',
+        fillColor: '#4263EB',
+        fillOpacity: 0.15,
+        weight: 2
+      }).addTo(map);
+    }
+</script>
+</body>
+</html>

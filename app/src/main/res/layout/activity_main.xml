@@ -9,46 +9,157 @@
     android:background="#080818"
     tools:context=".MainActivity">
 
+    <!-- ── Full-screen fragment container ── -->
     <androidx.fragment.app.FragmentContainerView
         android:id="@+id/fragment_container"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        tools:layout="@layout/fragment_home" />
+        tools:layout="@layout/fragment_home"/>
 
+    <!-- ══════════════════════════════════════════════════ -->
+    <!--   TOP-RIGHT ICONS — Bell + Settings                -->
+    <!--   Only visible on Home fragment.                   -->
+    <!--   MainActivity.setTopIconsVisible() controls this. -->
+    <!-- ══════════════════════════════════════════════════ -->
+    <LinearLayout
+        android:id="@+id/layoutTopRightIcons"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="48dp"
+        android:layout_marginEnd="16dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:elevation="12dp">
+
+        <!-- Bell with unread badge -->
+        <FrameLayout
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_marginEnd="8dp">
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardBellIcon"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:clickable="true"
+                android:focusable="true"
+                app:cardCornerRadius="22dp"
+                app:cardElevation="4dp"
+                app:cardBackgroundColor="#0D0D22"
+                app:strokeWidth="1dp"
+                app:strokeColor="#1A2244">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:text="🔔"
+                    android:textSize="18sp"/>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <TextView
+                android:id="@+id/tvNotifBadge"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:layout_gravity="top|end"
+                android:layout_marginTop="2dp"
+                android:layout_marginEnd="2dp"
+                android:background="@drawable/alarm_icon_bg"
+                android:backgroundTint="#EF4444"
+                android:gravity="center"
+                android:text="0"
+                android:textColor="#FFFFFF"
+                android:textSize="9sp"
+                android:textStyle="bold"
+                android:visibility="gone"
+                android:elevation="2dp"/>
+
+        </FrameLayout>
+
+        <!-- Settings gear -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardSettingsIcon"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:clickable="true"
+            android:focusable="true"
+            app:cardCornerRadius="22dp"
+            app:cardElevation="4dp"
+            app:cardBackgroundColor="#0D0D22"
+            app:strokeWidth="1dp"
+            app:strokeColor="#1A2244">
+
+            <ImageView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:padding="12dp"
+                android:src="@drawable/ic_settings"
+                app:tint="#7B9BFF"/>
+
+        </com.google.android.material.card.MaterialCardView>
+
+    </LinearLayout>
+
+    <!-- ══════════════════════════════════════════════════ -->
+    <!--   BOTTOM APP BAR                                   -->
+    <!--   fabCradleMargin=6dp keeps FAB cradle tight.      -->
+    <!--   height=60dp + explicit paddingHorizontal on      -->
+    <!--   BottomNavigationView fixes the item alignment.   -->
+    <!-- ══════════════════════════════════════════════════ -->
     <com.google.android.material.bottomappbar.BottomAppBar
         android:id="@+id/bottomAppBar"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="60dp"
         android:layout_gravity="bottom"
-        app:fabCradleMargin="8dp"
-        app:fabCradleRoundedCornerRadius="16dp"
-        app:fabAlignmentMode="center"
         android:backgroundTint="#0D0D20"
-        app:elevation="12dp">
+        app:elevation="16dp"
+        app:fabCradleMargin="6dp"
+        app:fabCradleRoundedCornerRadius="18dp"
+        app:fabCradleVerticalOffset="4dp"
+        app:fabAlignmentMode="center"
+        app:hideOnScroll="false">
 
+        <!-- ══════════════════════════════════════════════ -->
+        <!--   BottomNavigationView                         -->
+        <!--   With center FAB + 4 items:                   -->
+        <!--   items 1,2 go LEFT of FAB cradle              -->
+        <!--   items 3,4 go RIGHT of FAB cradle             -->
+        <!--   The horizontal padding ensures equal spacing  -->
+        <!--   on both sides so nothing overlaps the FAB.   -->
+        <!-- ══════════════════════════════════════════════ -->
         <com.google.android.material.bottomnavigation.BottomNavigationView
             android:id="@+id/bottomNavigationView"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:background="@android:color/transparent"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp"
             app:menu="@menu/bottom_nav_menu"
             app:itemIconTint="@drawable/selector_nav_icon"
             app:itemTextColor="@drawable/selector_nav_icon"
+            app:itemIconSize="22dp"
             app:labelVisibilityMode="labeled"
-            app:elevation="0dp" />
+            app:itemRippleColor="@android:color/transparent"
+            app:elevation="0dp"/>
 
     </com.google.android.material.bottomappbar.BottomAppBar>
 
+    <!-- ══════════════════════════════════════════════════ -->
+    <!--   CENTER FAB — anchored to BottomAppBar            -->
+    <!-- ══════════════════════════════════════════════════ -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fab"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:src="@drawable/ic_add"
+        android:contentDescription="Add Task"
         app:tint="@color/white"
         app:backgroundTint="#4263EB"
         app:layout_anchor="@id/bottomAppBar"
         app:layout_anchorGravity="center"
-        app:maxImageSize="28dp"
-        android:contentDescription="Add Task" />
+        app:maxImageSize="26dp"
+        app:elevation="8dp"/>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

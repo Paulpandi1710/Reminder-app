@@ -17,31 +17,34 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.Executors;
 
 public class PlannerFragment extends Fragment {
 
-    // ── Existing views ─────────────────────────────────
+    private static final int MAX_CALENDAR_EVENTS_SHOWN = 3;
+
     private TimelineAdapter timelineAdapter;
-    private TextView tvCurrentMonthYear;
-    private TextView tvCurrentDateHeader;
+    private TextView tvCurrentMonthYear, tvCurrentDateHeader;
     private LinearLayout layoutEmptyState;
     private RecyclerView rvTimeline;
 
-    // ── Calendar views ──────────────────────────────────
-    private LinearLayout layoutCalendarSection;
-    private LinearLayout layoutCalendarEvents;
+    private LinearLayout layoutCalendarSection, layoutCalendarEvents;
     private TextView tvCalendarSectionTitle;
     private MaterialCardView layoutCalendarPermission;
     private TextView btnGrantCalendarPermission;
 
-    // ── State ───────────────────────────────────────────
-    private Calendar currentSelectedDate = Calendar.getInstance();
-    private List<ActionItem> allDatabaseItems = new ArrayList<>();
+    // "See more" / collapse button
+    private TextView tvSeeMoreEvents;
+    private boolean calendarExpanded = false;
+    private List<CalendarHelper.CalendarEvent> lastEvents = new ArrayList<>();
 
-    // ── Calendar permission launcher ────────────────────
+    private Calendar currentSelectedDate = Calendar.getInstance();
+    private List<ActionItem> allDatabaseItems  = new ArrayList<>();
+
     private final ActivityResultLauncher<String> calendarPermLauncher =
             registerForActivityResult(
                     new ActivityResultContracts.RequestPermission(),
@@ -62,7 +65,6 @@ public class PlannerFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        // ── Bind views ─────────────────────────────────
         tvCurrentMonthYear       = view.findViewById(R.id.tvCurrentMonthYear);
         tvCurrentDateHeader      = view.findViewById(R.id.tvCurrentDateHeader);
         layoutEmptyState         = view.findViewById(R.id.layoutEmptyState);
@@ -72,13 +74,15 @@ public class PlannerFragment extends Fragment {
         tvCalendarSectionTitle   = view.findViewById(R.id.tvCalendarSectionTitle);
         layoutCalendarPermission = view.findViewById(R.id.layoutCalendarPermission);
         btnGrantCalendarPermission = view.findViewById(R.id.btnGrantCalendarPermission);
+        tvSeeMoreEvents          = view.findViewById(R.id.tvSeeMoreEvents);
 
-        // ── Date strip ─────────────────────────────────
+        // ── Date strip ─────────────────────────────────────
         RecyclerView rvDates = view.findViewById(R.id.rvDates);
         rvDates.setLayoutManager(new LinearLayoutManager(
                 getContext(), LinearLayoutManager.HORIZONTAL, false));
         DateAdapter dateAdapter = new DateAdapter(selectedDate -> {
             currentSelectedDate = selectedDate;
+            calendarExpanded = false; // reset collapse on date change
             updateDateHeader(selectedDate);
             filterAndDisplayTasks();
             loadCalendarEvents();
@@ -86,24 +90,30 @@ public class PlannerFragment extends Fragment {
         rvDates.setAdapter(dateAdapter);
         rvDates.scrollToPosition(30);
 
-        // ── Timeline ───────────────────────────────────
+        // ── Timeline ───────────────────────────────────────
         rvTimeline.setLayoutManager(new LinearLayoutManager(getContext()));
         timelineAdapter = new TimelineAdapter();
         rvTimeline.setAdapter(timelineAdapter);
 
-        // ── Calendar permission button ──────────────────
         btnGrantCalendarPermission.setOnClickListener(v ->
                 calendarPermLauncher.launch(Manifest.permission.READ_CALENDAR));
 
-        // ── Load data ──────────────────────────────────
+        // ── See more / collapse for calendar events ────────
+        if (tvSeeMoreEvents != null) {
+            tvSeeMoreEvents.setOnClickListener(v -> {
+                calendarExpanded = !calendarExpanded;
+                displayCalendarEvents(lastEvents);
+            });
+        }
+
         loadTimelineData();
         updateDateHeader(currentSelectedDate);
         checkCalendarAndLoad();
     }
 
-    // ═══════════════════════════════════════════════════
-    //   CALENDAR
-    // ═══════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
+    //   CALENDAR — DEDUP + COLLAPSE FIX
+    // ══════════════════════════════════════════════════════
 
     private void checkCalendarAndLoad() {
         if (!isAdded()) return;
@@ -112,7 +122,6 @@ public class PlannerFragment extends Fragment {
             layoutCalendarSection.setVisibility(View.VISIBLE);
             loadCalendarEvents();
         } else {
-            // Show section with permission banner only
             layoutCalendarSection.setVisibility(View.VISIBLE);
             layoutCalendarPermission.setVisibility(View.VISIBLE);
             layoutCalendarEvents.setVisibility(View.GONE);
@@ -127,34 +136,75 @@ public class PlannerFragment extends Fragment {
         int day   = currentSelectedDate.get(Calendar.DAY_OF_MONTH);
 
         Executors.newSingleThreadExecutor().execute(() -> {
-            List<CalendarHelper.CalendarEvent> events =
+            List<CalendarHelper.CalendarEvent> rawEvents =
                     CalendarHelper.getEventsForDay(requireContext(), year, month, day);
+
+            // ── DEDUP by event ID ──────────────────────────
+            List<CalendarHelper.CalendarEvent> events = deduplicateEvents(rawEvents);
+
             requireActivity().runOnUiThread(() -> {
-                if (isAdded()) displayCalendarEvents(events);
+                if (isAdded()) {
+                    lastEvents = events;
+                    displayCalendarEvents(events);
+                }
             });
         });
     }
 
+    // ══════════════════════════════════════════════════════
+    //   Deduplicate events by ID — prevents double entries
+    // ══════════════════════════════════════════════════════
+    private List<CalendarHelper.CalendarEvent> deduplicateEvents(
+            List<CalendarHelper.CalendarEvent> raw) {
+        List<CalendarHelper.CalendarEvent> result = new ArrayList<>();
+        // Deduplicate by composite key: title + startTime
+        Set<String> seen = new HashSet<>();
+        for (CalendarHelper.CalendarEvent e : raw) {
+            String key = e.title + "|" + e.timeLabel;
+            if (seen.add(key)) { // add returns false if already present
+                result.add(e);
+            }
+        }
+        return result;
+    }
+
     private void displayCalendarEvents(List<CalendarHelper.CalendarEvent> events) {
+        if (!isAdded()) return;
         layoutCalendarEvents.removeAllViews();
         layoutCalendarEvents.setVisibility(View.VISIBLE);
 
         if (events.isEmpty()) {
-            TextView noEvents = new TextView(getContext());
-            noEvents.setText("No meetings scheduled");
-            noEvents.setTextColor(0xFF445588);
-            noEvents.setTextSize(12f);
-            noEvents.setPadding(0, 2, 0, 6);
-            layoutCalendarEvents.addView(noEvents);
             tvCalendarSectionTitle.setText("📅  Calendar Events");
+            if (tvSeeMoreEvents != null) tvSeeMoreEvents.setVisibility(View.GONE);
             return;
         }
 
-        tvCalendarSectionTitle.setText("📅  " + events.size()
-                + " Calendar Event" + (events.size() > 1 ? "s" : ""));
+        int total   = events.size();
+        int showing = calendarExpanded
+                ? total
+                : Math.min(MAX_CALENDAR_EVENTS_SHOWN, total);
 
-        for (CalendarHelper.CalendarEvent event : events) {
-            layoutCalendarEvents.addView(buildEventCard(event));
+        tvCalendarSectionTitle.setText("📅  "
+                + total + " Event" + (total > 1 ? "s" : ""));
+
+        for (int i = 0; i < showing; i++) {
+            layoutCalendarEvents.addView(buildEventCard(events.get(i)));
+        }
+
+        // ── See more / collapse button ─────────────────────
+        if (tvSeeMoreEvents != null) {
+            if (total > MAX_CALENDAR_EVENTS_SHOWN) {
+                tvSeeMoreEvents.setVisibility(View.VISIBLE);
+                if (calendarExpanded) {
+                    tvSeeMoreEvents.setText("▲  Show less");
+                } else {
+                    int hidden = total - MAX_CALENDAR_EVENTS_SHOWN;
+                    tvSeeMoreEvents.setText("▼  " + hidden + " more event"
+                            + (hidden > 1 ? "s" : ""));
+                }
+            } else {
+                tvSeeMoreEvents.setVisibility(View.GONE);
+            }
         }
     }
 
@@ -178,7 +228,7 @@ public class PlannerFragment extends Fragment {
         inner.setGravity(android.view.Gravity.CENTER_VERTICAL);
         inner.setPadding(dpToPx(12), dpToPx(10), dpToPx(12), dpToPx(10));
 
-        // Left color bar
+        // Color bar
         View bar = new View(getContext());
         LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(dpToPx(3), dpToPx(36));
         bp.setMarginEnd(dpToPx(10));
@@ -205,16 +255,16 @@ public class PlannerFragment extends Fragment {
                 + (event.durationLabel.isEmpty() ? "" : "  ·  " + event.durationLabel));
         tvTime.setTextColor(0xFF4263EB);
         tvTime.setTextSize(11f);
-        LinearLayout.LayoutParams timep = new LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
-        timep.topMargin = dpToPx(2);
-        tvTime.setLayoutParams(timep);
+        tp.topMargin = dpToPx(2);
+        tvTime.setLayoutParams(tp);
 
         content.addView(tvTitle);
         content.addView(tvTime);
 
-        if (!event.location.isEmpty()) {
+        if (event.location != null && !event.location.isEmpty()) {
             TextView tvLoc = new TextView(getContext());
             tvLoc.setText("📍 " + event.location);
             tvLoc.setTextColor(0xFF334466);
@@ -235,9 +285,9 @@ public class PlannerFragment extends Fragment {
         return card;
     }
 
-    // ═══════════════════════════════════════════════════
-    //   TIMELINE (all original logic — unchanged)
-    // ═══════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
+    //   TIMELINE
+    // ══════════════════════════════════════════════════════
 
     private void updateDateHeader(Calendar calendar) {
         tvCurrentMonthYear.setText(new SimpleDateFormat(
@@ -247,7 +297,8 @@ public class PlannerFragment extends Fragment {
     }
 
     private void loadTimelineData() {
-        FocusDatabase.getInstance(getContext()).actionDao().getAllItems()
+        FocusDatabase.getInstance(getContext()).actionDao()
+                .getAllItems()
                 .observe(getViewLifecycleOwner(), items -> {
                     allDatabaseItems = items != null ? items : new ArrayList<>();
                     filterAndDisplayTasks();
@@ -255,13 +306,15 @@ public class PlannerFragment extends Fragment {
     }
 
     private void filterAndDisplayTasks() {
-        List<ActionItem> filtered = new ArrayList<>();
         int ty = currentSelectedDate.get(Calendar.YEAR);
         int tm = currentSelectedDate.get(Calendar.MONTH);
         int td = currentSelectedDate.get(Calendar.DAY_OF_MONTH);
 
+        List<ActionItem> filtered = new ArrayList<>();
         for (ActionItem item : allDatabaseItems) {
-            if (item.type.equals("routines")) {
+            if ("history_routine".equals(item.type) || "geofence".equals(item.type))
+                continue;
+            if ("routines".equals(item.type)) {
                 filtered.add(item);
             } else if (item.year == ty && item.month == tm && item.day == td) {
                 filtered.add(item);

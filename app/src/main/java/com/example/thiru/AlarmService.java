@@ -14,63 +14,60 @@ import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.IBinder;
+import android.os.VibrationEffect;
 import android.os.Vibrator;
+import android.util.Log;
 import androidx.core.app.NotificationCompat;
 
 public class AlarmService extends Service {
 
+    private static final String TAG                 = "AlarmService";
+    private static final int    ALARM_NOTIFICATION_ID = 999;
+    private static final String CHANNEL_ID           = "focusflow_master_alarm";
+
     private MediaPlayer mediaPlayer;
-    private Vibrator vibrator;
-    private static final int ALARM_NOTIFICATION_ID = 999;
-    private static final String CHANNEL_ID = "focusflow_master_alarm";
+    private Vibrator    vibrator;
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
 
-        // Stop command from AlarmScreenActivity when user
-        // taps Ready / Pending / Dismiss / Snooze
+        // STOP command from AlarmScreenActivity
         if (intent != null && "STOP_ALARM".equals(intent.getAction())) {
             stopSelf();
             return START_NOT_STICKY;
         }
 
-        // Safe title extraction — dual source
+        // ── Title — dual source ───────────────────────────
         String taskTitle = null;
         if (intent != null) {
             taskTitle = intent.getStringExtra("TASK_TITLE");
+            if (taskTitle == null || taskTitle.isEmpty())
+                taskTitle = intent.getStringExtra("item_title");
         }
         if (taskTitle == null || taskTitle.isEmpty()) {
-            SharedPreferences prefs = getSharedPreferences(
-                    "AppPrefs", Context.MODE_PRIVATE);
-            taskTitle = prefs.getString("current_alarm_title", "Your Task");
+            SharedPreferences p = getSharedPreferences("AppPrefs", Context.MODE_PRIVATE);
+            taskTitle = p.getString("current_alarm_title", "Your Task");
         }
-        if (taskTitle == null || taskTitle.isEmpty()) {
-            taskTitle = "Your Task";
-        }
+        if (taskTitle == null || taskTitle.isEmpty()) taskTitle = "Your Task";
 
-        // Read user preferences
-        SharedPreferences prefs = getSharedPreferences(
-                "AppPrefs", Context.MODE_PRIVATE);
-        boolean isVibrateEnabled = prefs.getBoolean("enable_vibration", true);
-        String savedRingtone     = prefs.getString("custom_ringtone", null);
+        SharedPreferences prefs  = getSharedPreferences("AppPrefs", Context.MODE_PRIVATE);
+        boolean vibrateEnabled   = prefs.getBoolean("enable_vibration", true);
+        String  savedRingtone    = prefs.getString("custom_ringtone", null);
 
-        // ── Step 1: Create foreground notification ────────
-        // This is REQUIRED before doing anything else on
-        // Android 8+ — must call startForeground() quickly
+        // ── Step 1: startForeground — must be first ───────
         createNotificationChannel();
 
-        Intent fullScreenIntent = new Intent(this, AlarmScreenActivity.class);
-        fullScreenIntent.putExtra("TASK_TITLE", taskTitle);
-        fullScreenIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+        Intent screenIntent = new Intent(this, AlarmScreenActivity.class);
+        screenIntent.putExtra("TASK_TITLE", taskTitle);
+        screenIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
                 | Intent.FLAG_ACTIVITY_SINGLE_TOP);
 
         PendingIntent fullScreenPi = PendingIntent.getActivity(
-                this, 0, fullScreenIntent,
+                this, 0, screenIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
-        // Tap notification → open alarm screen
         PendingIntent tapPi = PendingIntent.getActivity(
-                this, 1, fullScreenIntent,
+                this, 1, screenIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
         Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
@@ -85,87 +82,80 @@ public class AlarmService extends Service {
                 .setAutoCancel(false)
                 .build();
 
-        // Bind service to notification — OS cannot kill it
         startForeground(ALARM_NOTIFICATION_ID, notification);
 
-        // ── Step 2: Play alarm audio ──────────────────────
+        // ── Step 2: Play audio ────────────────────────────
         playAlarmAudio(savedRingtone);
 
         // ── Step 3: Vibrate ───────────────────────────────
-        if (isVibrateEnabled) {
-            vibratePhone();
-        }
+        if (vibrateEnabled) vibratePhone();
 
-        // ── Step 4: Launch AlarmScreenActivity ───────────
-        // Foreground services ARE allowed to launch activities
-        // on all Android versions — this is the key fix!
+        // ── Step 4: Launch alarm screen ───────────────────
         try {
-            startActivity(fullScreenIntent);
+            startActivity(screenIntent);
         } catch (Exception e) {
-            // If direct launch fails (edge case), the
-            // fullScreenIntent on the notification acts
-            // as a reliable fallback
-            e.printStackTrace();
+            Log.e(TAG, "startActivity failed: " + e.getMessage());
+            // fullScreenIntent on notification is the fallback
         }
 
-        // START_STICKY — if OS kills service, restart it
+        // ── Step 5: Log to in-app notifications ───────────
+        try {
+            NotificationHelper.add(this,
+                    "⏰ " + taskTitle,
+                    "Alarm is ringing for \"" + taskTitle + "\"",
+                    "alarm");
+        } catch (Exception ignored) {}
+
         return START_STICKY;
     }
 
     private void playAlarmAudio(String savedRingtoneUri) {
         try {
             Uri alarmUri = null;
-
-            // Use user's chosen ringtone if set
             if (savedRingtoneUri != null && !savedRingtoneUri.isEmpty()) {
                 alarmUri = Uri.parse(savedRingtoneUri);
             }
-
-            // Fall back to system alarm sound
             if (alarmUri == null) {
-                alarmUri = RingtoneManager.getDefaultUri(
-                        RingtoneManager.TYPE_ALARM);
+                alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
             }
-
-            // Final fallback — ringtone
             if (alarmUri == null) {
-                alarmUri = RingtoneManager.getDefaultUri(
-                        RingtoneManager.TYPE_RINGTONE);
+                alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);
             }
+            if (alarmUri == null) return;
 
-            if (alarmUri != null) {
-                mediaPlayer = new MediaPlayer();
-                mediaPlayer.setDataSource(this, alarmUri);
-                mediaPlayer.setAudioAttributes(
-                        new AudioAttributes.Builder()
-                                .setUsage(AudioAttributes.USAGE_ALARM)
-                                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                                .build());
-                mediaPlayer.setLooping(true);
-                mediaPlayer.prepare();
-                mediaPlayer.start();
-            }
+            mediaPlayer = new MediaPlayer();
+            mediaPlayer.setDataSource(this, alarmUri);
+            mediaPlayer.setAudioAttributes(new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build());
+            mediaPlayer.setLooping(true);
+            mediaPlayer.prepare();
+            mediaPlayer.start();
+            Log.d(TAG, "Audio playing");
         } catch (Exception e) {
-            e.printStackTrace();
+            Log.e(TAG, "playAlarmAudio: " + e.getMessage());
         }
     }
 
     private void vibratePhone() {
         try {
             vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
-            if (vibrator != null) {
-                // Pattern: wait 0ms, vibrate 1s, pause 1s — loop forever
-                long[] pattern = {0, 1000, 1000};
+            if (vibrator == null) return;
+            long[] pattern = {0, 1000, 800};
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vibrator.vibrate(VibrationEffect.createWaveform(pattern, 0));
+            } else {
+                //noinspection deprecation
                 vibrator.vibrate(pattern, 0);
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            Log.e(TAG, "vibratePhone: " + e.getMessage());
         }
     }
 
     @Override
     public void onDestroy() {
-        // Clean up audio
         try {
             if (mediaPlayer != null) {
                 if (mediaPlayer.isPlaying()) mediaPlayer.stop();
@@ -174,7 +164,6 @@ public class AlarmService extends Service {
             }
         } catch (Exception ignored) {}
 
-        // Clean up vibration
         try {
             if (vibrator != null) {
                 vibrator.cancel();
@@ -182,34 +171,26 @@ public class AlarmService extends Service {
             }
         } catch (Exception ignored) {}
 
-        // Remove the ongoing notification
         try {
             NotificationManager nm =
-                    (NotificationManager) getSystemService(
-                            Context.NOTIFICATION_SERVICE);
+                    (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
             if (nm != null) nm.cancel(ALARM_NOTIFICATION_ID);
         } catch (Exception ignored) {}
 
         super.onDestroy();
     }
 
-    @Override
-    public IBinder onBind(Intent intent) {
-        return null;
-    }
+    @Override public IBinder onBind(Intent intent) { return null; }
 
     private void createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(
-                    CHANNEL_ID,
-                    "Active Alarms",
-                    NotificationManager.IMPORTANCE_HIGH);
-            channel.setBypassDnd(true);
-            channel.enableVibration(true);
-            channel.setShowBadge(true);
-            NotificationManager manager = getSystemService(
-                    NotificationManager.class);
-            if (manager != null) manager.createNotificationChannel(channel);
-        }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
+        NotificationChannel channel = new NotificationChannel(
+                CHANNEL_ID, "Active Alarms",
+                NotificationManager.IMPORTANCE_HIGH);
+        channel.setBypassDnd(true);
+        channel.enableVibration(true);
+        channel.setShowBadge(true);
+        NotificationManager nm = getSystemService(NotificationManager.class);
+        if (nm != null) nm.createNotificationChannel(channel);
     }
 }

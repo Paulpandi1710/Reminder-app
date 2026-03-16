@@ -5,6 +5,6 @@
     android:thickness="6dp"
     android:useLevel="false">
 
-    <solid android:color="#40FFFFFF" />
+    <solid android:color="#2A3A6E"/>
 
 </shape>

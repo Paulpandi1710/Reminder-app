@@ -82,7 +82,16 @@ public class GroqService {
         SharedPreferences prefs = context.getSharedPreferences(
                 "AppPrefs", Context.MODE_PRIVATE);
         String rawName   = prefs.getString("user_name", "").trim();
-        String firstName = rawName.isEmpty() ? "friend" : rawName.split("\\s+")[0];
+        // ══════════════════════════════════════════════════
+        //   FIX: If user has set a name, ALWAYS use it.
+        //   Never fall back to "friend" when a real name
+        //   exists. "friend" was appearing because the
+        //   fallback "friend" was passed to Groq and Groq
+        //   used it literally in every response.
+        // ══════════════════════════════════════════════════
+        String firstName = rawName.isEmpty()
+                ? null  // null = no name set
+                : rawName.split("\\s+")[0];
 
         boolean isActionRequest = detectActionIntent(newMessage);
 
@@ -91,14 +100,6 @@ public class GroqService {
                 ? buildActionSystemPrompt(firstName, context, items)
                 : buildChatSystemPrompt(firstName, context, items);
 
-        // ══════════════════════════════════════════════════
-        //   BUG FIX: use separate temperature for action
-        //   requests. temperature=0.7 caused Groq to add
-        //   conversational text around JSON even when told
-        //   not to — breaking the JSON parser every time.
-        //   Action requests now use temperature=0.1 for
-        //   deterministic clean JSON output.
-        // ══════════════════════════════════════════════════
         final double temperature = isActionRequest ? 0.1 : 0.7;
 
         Executors.newSingleThreadExecutor().execute(() -> {
@@ -111,28 +112,30 @@ public class GroqService {
 
                 if (isActionRequest) {
                     GroqResult parsed = parseActionResponse(raw);
-                    // ── If JSON parse failed, still confirm to user ──
                     if (parsed.actionType.equals(ACTION_NONE)) {
                         Log.w(TAG, "Action parse failed, retrying extraction");
-                        // Try harder — maybe Groq added a preamble
-                        GroqResult retry = tryHardParseJSON(raw, firstName);
+                        // firstName may be null — pass empty string to tryHardParseJSON
+                        GroqResult retry = tryHardParseJSON(raw,
+                                firstName != null ? firstName : "");
                         callback.onResult(retry);
                     } else {
                         callback.onResult(parsed);
                     }
                 } else {
-                    callback.onResult(new GroqResult(raw, true, ACTION_NONE, null));
+                    callback.onResult(
+                            new GroqResult(raw, true, ACTION_NONE, null));
                 }
             } else {
                 Log.w(TAG, "Groq failed — falling back to AIEngine");
                 AIEngine.AIMessage r = AIEngine.chat(context, newMessage, items);
-                callback.onResult(new GroqResult(r.text, false, ACTION_NONE, null));
+                callback.onResult(
+                        new GroqResult(r.text, false, ACTION_NONE, null));
             }
         });
     }
 
     // ─────────────────────────────────────────────────────
-    //   ACTION INTENT DETECTION
+    //   ACTION INTENT DETECTION — unchanged
     // ─────────────────────────────────────────────────────
 
     public static boolean detectActionIntent(String msg) {
@@ -146,19 +149,16 @@ public class GroqService {
                 "add a routine", "create a routine", "set an alarm",
                 "add reminder", "set reminder", "remind me to",
                 "set a reminder", "make a task", "make a routine",
-                // Voice-friendly natural phrases
                 "add", "create", "set", "schedule me", "put",
                 "make me", "i need to", "don't forget"
         };
 
-        // Require time-like or task-like context for very short keywords
         String[] timeWords = {"at", "by", "on", "today", "tomorrow",
                 "morning", "afternoon", "evening", "night",
                 "am", "pm", "o'clock", "daily", "every"};
 
         for (String kw : actionWords) {
             if (lower.contains(kw)) {
-                // Short ambiguous words need time context
                 if (kw.equals("add") || kw.equals("create") || kw.equals("set")
                         || kw.equals("put") || kw.equals("make me")
                         || kw.equals("i need to") || kw.equals("don't forget")) {
@@ -179,11 +179,36 @@ public class GroqService {
 
     private static String buildChatSystemPrompt(String name, Context ctx,
                                                 List<ActionItem> items) {
-        String context = buildContextBlock(name, ctx, items);
+        String contextBlock = buildContextBlock(name, ctx, items);
+
+        // ══════════════════════════════════════════════════
+        //   FIX: "friend" was appearing because:
+        //   1. name was passed as "friend" when no name set
+        //   2. System prompt rule was weak — Groq ignored it
+        //
+        //   Now:
+        //   - name is null when user hasn't set one
+        //   - If null → do NOT address the user by name
+        //   - If set  → MANDATORY to use it, forbidden to
+        //     use "friend", "buddy", "pal" or any generic
+        //     address word instead of the real name
+        // ══════════════════════════════════════════════════
+        String nameRule;
+        if (name != null && !name.isEmpty()) {
+            nameRule = "MANDATORY: The user's name is " + name + ". "
+                    + "You MUST address them as " + name + " in every response. "
+                    + "NEVER use 'friend', 'buddy', 'pal', 'there', or any other "
+                    + "generic address word. ONLY use " + name + ".";
+        } else {
+            nameRule = "The user has not set their name. "
+                    + "Do NOT use 'friend', 'buddy', or any generic placeholder. "
+                    + "Simply do not address them by name at all.";
+        }
+
         return "You are a smart, warm productivity coach inside FocusFlow app.\n"
-                + context
+                + contextBlock
                 + "\nSTRICT RULES:\n"
-                + "1. Always use the name " + name + " naturally.\n"
+                + "1. " + nameRule + "\n"
                 + "2. Never start reply with 'I'.\n"
                 + "3. Never repeat advice from earlier in the conversation.\n"
                 + "4. Max 4 sentences. **Bold** key phrases. No bullet lists.\n"
@@ -200,6 +225,9 @@ public class GroqService {
         int tomorrowDay  = todayDay + 1;
         int todayHour    = cal.get(Calendar.HOUR_OF_DAY);
 
+        // Use name in confirm message — fallback to empty string if null
+        String displayName = (name != null && !name.isEmpty()) ? name : "";
+
         return "You are an AI assistant. Extract task/routine details and return ONLY JSON.\n"
                 + "Today: " + todayDay + "/" + todayMonth + "/" + todayYear
                 + " Time: " + todayHour + ":00\n\n"
@@ -212,14 +240,18 @@ public class GroqService {
                 + "\"month\":" + todayMonth + ","
                 + "\"year\":" + todayYear + ","
                 + "\"description\":\"brief desc\","
-                + "\"confirm_message\":\"✅ Done, " + name + "! Added [title] to your schedule at [time].\"}\n\n"
+                + "\"confirm_message\":\"✅ Done"
+                + (displayName.isEmpty() ? "" : ", " + displayName)
+                + "! Added [title] to your schedule at [time].\"}\n\n"
                 + "For a ROUTINE (daily repeating):\n"
                 + "{\"action\":\"CREATE_ROUTINE\","
                 + "\"title\":\"routine title\","
                 + "\"hour\":7,"
                 + "\"minute\":0,"
                 + "\"description\":\"brief desc\","
-                + "\"confirm_message\":\"✅ Done, " + name + "! [title] set as daily routine at [time].\"}\n\n"
+                + "\"confirm_message\":\"✅ Done"
+                + (displayName.isEmpty() ? "" : ", " + displayName)
+                + "! [title] set as daily routine at [time].\"}\n\n"
                 + "RULES (follow exactly):\n"
                 + "- Return ONLY the JSON object. Zero extra text before or after.\n"
                 + "- No markdown, no code blocks, no explanation.\n"
@@ -259,10 +291,16 @@ public class GroqService {
             if (sched.length() < 400)
                 sched.append("• ").append(item.title)
                         .append(" [").append(item.isCompleted ? "done"
-                                : item.isPending ? "pending" : "upcoming").append("]\n");
+                                : item.isPending ? "pending" : "upcoming")
+                        .append("]\n");
         }
 
-        return "User: " + name + "\n"
+        // Use "User: (name)" only if name is set
+        String userLine = (name != null && !name.isEmpty())
+                ? "User: " + name + "\n"
+                : "User: (name not set)\n";
+
+        return userLine
                 + "Date: " + days[dayOfW] + " " + date
                 + " | Time: " + formatHour(hour) + "\n"
                 + "Level: " + level + " (" + rank + " " + badge
@@ -274,7 +312,7 @@ public class GroqService {
     }
 
     // ─────────────────────────────────────────────────────
-    //   PARSE ACTION RESPONSE
+    //   PARSE ACTION RESPONSE — unchanged
     // ─────────────────────────────────────────────────────
 
     private static GroqResult parseActionResponse(String raw) {
@@ -299,15 +337,8 @@ public class GroqService {
         }
     }
 
-    // ══════════════════════════════════════════════════════
-    //   HARD JSON EXTRACTION
-    //   Called when normal parse fails — tries every known
-    //   pattern Groq uses to wrap JSON in its responses
-    // ══════════════════════════════════════════════════════
-
     private static GroqResult tryHardParseJSON(String raw, String userName) {
         try {
-            // Attempt 1: already tried normal extraction, now scan all { } pairs
             String[] lines = raw.split("\n");
             for (String line : lines) {
                 line = line.trim();
@@ -325,7 +356,6 @@ public class GroqService {
                 }
             }
 
-            // Attempt 2: find any { } block across lines
             int first = raw.indexOf('{');
             int last  = raw.lastIndexOf('}');
             if (first >= 0 && last > first) {
@@ -342,45 +372,33 @@ public class GroqService {
         } catch (Exception e) {
             Log.e(TAG, "tryHardParseJSON: " + e.getMessage());
         }
-        // All attempts failed — return raw as chat message
         return new GroqResult(raw, true, ACTION_NONE, null);
     }
-
-    // ══════════════════════════════════════════════════════
-    //   EXTRACT JSON STRING FROM GROQ RESPONSE
-    //   Handles: raw JSON, ```json blocks, ``` blocks,
-    //   JSON after preamble text
-    // ══════════════════════════════════════════════════════
 
     private static String extractJSON(String raw) {
         if (raw == null || raw.isEmpty()) return null;
         String s = raw.trim();
 
-        // Case 1: wrapped in ```json ... ```
         if (s.contains("```json")) {
             int start = s.indexOf("```json") + 7;
             int end   = s.lastIndexOf("```");
             if (end > start) s = s.substring(start, end).trim();
-        }
-        // Case 2: wrapped in ``` ... ```
-        else if (s.contains("```")) {
+        } else if (s.contains("```")) {
             int start = s.indexOf("```") + 3;
             int end   = s.lastIndexOf("```");
             if (end > start) s = s.substring(start, end).trim();
         }
 
-        // Case 3: find first { and last } (handles preamble text)
         int firstBrace = s.indexOf('{');
         int lastBrace  = s.lastIndexOf('}');
         if (firstBrace >= 0 && lastBrace > firstBrace) {
             return s.substring(firstBrace, lastBrace + 1).trim();
         }
-
         return null;
     }
 
     // ─────────────────────────────────────────────────────
-    //   GROQ API CALL — temperature now a parameter
+    //   GROQ API CALL — unchanged
     // ─────────────────────────────────────────────────────
 
     private static String callGroq(String apiKey,
@@ -400,12 +418,10 @@ public class GroqService {
 
             JSONArray messages = new JSONArray();
 
-            // System prompt
             messages.put(new JSONObject()
                     .put("role", "system")
                     .put("content", systemPrompt));
 
-            // Trimmed history
             if (history != null && history.size() > 1) {
                 int start = Math.max(1, history.size() - MAX_HISTORY_TURNS);
                 for (int i = start; i < history.size(); i++) {
@@ -419,7 +435,6 @@ public class GroqService {
                 }
             }
 
-            // Current message
             messages.put(new JSONObject()
                     .put("role", "user")
                     .put("content", newMessage));
@@ -428,7 +443,7 @@ public class GroqService {
                     .put("model", MODEL)
                     .put("messages", messages)
                     .put("max_tokens", 400)
-                    .put("temperature", temperature)   // ← dynamic
+                    .put("temperature", temperature)
                     .put("top_p", 0.95);
 
             byte[] input = body.toString().getBytes(StandardCharsets.UTF_8);
@@ -479,7 +494,7 @@ public class GroqService {
     }
 
     // ─────────────────────────────────────────────────────
-    //   HELPERS
+    //   HELPERS — unchanged
     // ─────────────────────────────────────────────────────
 
     public static boolean isOnline(Context context) {

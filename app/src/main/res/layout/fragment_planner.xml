@@ -7,15 +7,15 @@
     android:orientation="vertical">
 
     <!-- ═══════════════════════════════════════════════ -->
-    <!--                HEADER                           -->
+    <!--              HEADER                             -->
     <!-- ═══════════════════════════════════════════════ -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:paddingHorizontal="24dp"
-        android:paddingTop="28dp"
-        android:paddingBottom="16dp">
+        android:paddingTop="56dp"
+        android:paddingBottom="12dp">
 
         <TextView
             android:layout_width="wrap_content"
@@ -32,13 +32,11 @@
             android:layout_marginTop="4dp"
             android:orientation="horizontal"
             android:gravity="center_vertical">
-
             <View
                 android:layout_width="16dp"
                 android:layout_height="3dp"
                 android:background="@drawable/tab_selected_bg"
                 android:layout_marginEnd="8dp"/>
-
             <TextView
                 android:id="@+id/tvCurrentMonthYear"
                 android:layout_width="wrap_content"
@@ -56,24 +54,23 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
             android:text="Day, Date"
-            android:textColor="#445588"
+            android:textColor="#8899CC"
             android:textSize="13sp"/>
     </LinearLayout>
 
     <!-- ═══════════════════════════════════════════════ -->
-    <!--          HORIZONTAL DATE STRIP                  -->
+    <!--   HORIZONTAL DATE STRIP                         -->
     <!-- ═══════════════════════════════════════════════ -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvDates"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:clipToPadding="false"
-        android:paddingHorizontal="16dp"
+        android:paddingHorizontal="12dp"
         android:paddingBottom="8dp"/>
 
     <!-- ═══════════════════════════════════════════════ -->
-    <!--   CALENDAR EVENTS SECTION                       -->
-    <!--   Visibility toggled in PlannerFragment.java    -->
+    <!--   CALENDAR EVENTS — max height + see more       -->
     <!-- ═══════════════════════════════════════════════ -->
     <LinearLayout
         android:id="@+id/layoutCalendarSection"
@@ -90,19 +87,17 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:paddingVertical="8dp">
-
+            android:paddingVertical="6dp">
             <TextView
                 android:id="@+id/tvCalendarSectionTitle"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="📅  Calendar Events"
-                android:textColor="#EEEEFF"
+                android:textColor="#AABBDD"
                 android:textSize="12sp"
                 android:textStyle="bold"
                 android:letterSpacing="0.04"/>
-
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -123,20 +118,17 @@
             app:cardElevation="0dp"
             app:strokeColor="#1A2244"
             app:strokeWidth="1dp">
-
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
                 android:padding="14dp">
-
                 <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:orientation="vertical">
-
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -144,7 +136,6 @@
                         android:textColor="#EEEEFF"
                         android:textSize="13sp"
                         android:textStyle="bold"/>
-
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -153,7 +144,6 @@
                         android:textColor="#445588"
                         android:textSize="11sp"/>
                 </LinearLayout>
-
                 <TextView
                     android:id="@+id/btnGrantCalendarPermission"
                     android:layout_width="wrap_content"
@@ -170,7 +160,7 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Event cards injected here programmatically -->
+        <!-- Event cards container — max 3 shown by default -->
         <LinearLayout
             android:id="@+id/layoutCalendarEvents"
             android:layout_width="match_parent"
@@ -178,34 +168,47 @@
             android:orientation="vertical"
             android:visibility="gone"/>
 
-        <!-- Thin divider below calendar section -->
+        <!-- See more / collapse button -->
+        <TextView
+            android:id="@+id/tvSeeMoreEvents"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="4dp"
+            android:text="▼  2 more events"
+            android:textColor="#4263EB"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:paddingVertical="4dp"
+            android:visibility="gone"/>
+
+        <!-- Thin divider -->
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="6dp"
             android:background="#0D1A33"/>
 
     </LinearLayout>
 
     <!-- ═══════════════════════════════════════════════ -->
-    <!--   "YOUR FLOWS" label above timeline             -->
+    <!--   YOUR FLOWS label                              -->
     <!-- ═══════════════════════════════════════════════ -->
     <TextView
         android:id="@+id/tvFlowsLabel"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="20dp"
-        android:layout_marginTop="10dp"
-        android:layout_marginBottom="6dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="4dp"
         android:text="YOUR FLOWS"
-        android:textColor="#334466"
+        android:textColor="#445588"
         android:textSize="11sp"
         android:letterSpacing="0.14"
         android:textStyle="bold"/>
 
     <!-- ═══════════════════════════════════════════════ -->
     <!--   TIMELINE + EMPTY STATE                        -->
-    <!--   FrameLayout fills remaining space — correct   -->
     <!-- ═══════════════════════════════════════════════ -->
     <FrameLayout
         android:layout_width="match_parent"
@@ -220,7 +223,6 @@
             android:paddingHorizontal="16dp"
             android:paddingBottom="110dp"/>
 
-        <!-- Empty state -->
         <LinearLayout
             android:id="@+id/layoutEmptyState"
             android:layout_width="match_parent"
@@ -238,7 +240,6 @@
                 app:cardElevation="0dp"
                 app:strokeWidth="0dp"
                 app:cardBackgroundColor="#111128">
-
                 <ImageView
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"

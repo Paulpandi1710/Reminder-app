@@ -18,44 +18,75 @@ public class GeofenceBroadcastReceiver extends BroadcastReceiver {
 
     private static final String TAG        = "GeofenceReceiver";
     private static final String CHANNEL_ID = "geofence_channel";
+    private static final int    NOTIF_BASE = 6000;
 
     @Override
     public void onReceive(Context context, Intent intent) {
+        Log.d(TAG, "Geofence broadcast received");
+
         GeofencingEvent event = GeofencingEvent.fromIntent(intent);
-        if (event == null || event.hasError()) {
-            Log.e(TAG, "GeofencingEvent error");
+        if (event == null) {
+            Log.e(TAG, "GeofencingEvent is null");
+            return;
+        }
+        if (event.hasError()) {
+            Log.e(TAG, "GeofencingEvent error code: " + event.getErrorCode());
             return;
         }
 
-        if (event.getGeofenceTransition() != Geofence.GEOFENCE_TRANSITION_ENTER) return;
+        int transition = event.getGeofenceTransition();
+        Log.d(TAG, "Transition type: " + transition);
+
+        // Only handle ENTER
+        if (transition != Geofence.GEOFENCE_TRANSITION_ENTER) return;
 
         List<Geofence> triggered = event.getTriggeringGeofences();
-        if (triggered == null || triggered.isEmpty()) return;
+        if (triggered == null || triggered.isEmpty()) {
+            Log.w(TAG, "No triggering geofences");
+            return;
+        }
 
+        // Create channel immediately (sync — we're on a background thread from system)
         createChannel(context);
 
-        for (Geofence geofence : triggered) {
-            String requestId = geofence.getRequestId();
-            // Look up the ActionItem to get the title
-            Executors.newSingleThreadExecutor().execute(() -> {
-                try {
-                    int itemId = Integer.parseInt(requestId);
-                    // Get all items, find matching geofence
-                    List<ActionItem> all = FocusDatabase.getInstance(context)
-                            .actionDao().getAllItemsSync();
-                    for (ActionItem item : all) {
-                        if (item.id == itemId && "geofence".equals(item.type)) {
-                            postNotification(context, item);
-                            break;
+        // Use goAsync to do DB lookup without ANR risk
+        final BroadcastReceiver.PendingResult pendingResult = goAsync();
+
+        Executors.newSingleThreadExecutor().execute(() -> {
+            try {
+                List<ActionItem> all = FocusDatabase.getInstance(context)
+                        .actionDao().getAllItemsSync();
+
+                for (Geofence geofence : triggered) {
+                    String requestId = geofence.getRequestId();
+                    Log.d(TAG, "Triggered geofence ID: " + requestId);
+
+                    ActionItem match = null;
+                    try {
+                        int itemId = Integer.parseInt(requestId);
+                        for (ActionItem item : all) {
+                            if (item.id == itemId && "geofence".equals(item.type)) {
+                                match = item;
+                                break;
+                            }
                         }
+                    } catch (NumberFormatException e) {
+                        Log.e(TAG, "Non-integer geofence ID: " + requestId);
                     }
-                } catch (Exception e) {
-                    Log.e(TAG, "Failed to find geofence item: " + e.getMessage());
-                    // Post generic notification
-                    postGenericNotification(context, requestId);
+
+                    if (match != null) {
+                        postNotification(context, match);
+                    } else {
+                        // Post generic fallback
+                        postFallbackNotification(context, requestId);
+                    }
                 }
-            });
-        }
+            } catch (Exception e) {
+                Log.e(TAG, "Error processing geofence: " + e.getMessage());
+            } finally {
+                pendingResult.finish();
+            }
+        });
     }
 
     private void postNotification(Context context, ActionItem item) {
@@ -63,37 +94,58 @@ public class GeofenceBroadcastReceiver extends BroadcastReceiver {
                 context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (nm == null) return;
 
+        // Open app to Home tab
         Intent openApp = new Intent(context, MainActivity.class);
+        openApp.putExtra("nav_tab", "home");
         openApp.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        PendingIntent pi = PendingIntent.getActivity(context, item.id,
-                openApp, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        PendingIntent pi = PendingIntent.getActivity(context,
+                NOTIF_BASE + item.id, openApp,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
-        String desc = (item.description != null && !item.description.isEmpty())
-                ? item.description : "You've arrived at this location!";
+        // Build the notification title without the emoji prefix
+        String cleanTitle = item.title.replace("📍 ", "");
+        String body = (item.description != null && !item.description.isEmpty()
+                && !item.description.startsWith("Arrive at"))
+                ? item.description
+                : "You've arrived at " + cleanTitle + ". Tap to view your reminders.";
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.ic_dialog_map)
-                .setContentTitle("📍 " + item.title)
-                .setContentText(desc)
-                .setStyle(new NotificationCompat.BigTextStyle().bigText(desc))
+                .setContentTitle("📍 You arrived: " + cleanTitle)
+                .setContentText(body)
+                .setStyle(new NotificationCompat.BigTextStyle()
+                        .bigText(body)
+                        .setBigContentTitle("📍 You arrived: " + cleanTitle))
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setCategory(NotificationCompat.CATEGORY_REMINDER)
                 .setAutoCancel(true)
+                .setVibrate(new long[]{0, 200, 100, 200})
                 .setContentIntent(pi);
 
-        nm.notify(item.id + 5000, builder.build());
+        nm.notify(NOTIF_BASE + item.id, builder.build());
+        Log.d(TAG, "Notification posted for: " + cleanTitle);
     }
 
-    private void postGenericNotification(Context context, String id) {
+    private void postFallbackNotification(Context context, String geofenceId) {
         NotificationManager nm = (NotificationManager)
                 context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (nm == null) return;
+
+        Intent openApp = new Intent(context, MainActivity.class);
+        openApp.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        PendingIntent pi = PendingIntent.getActivity(context,
+                geofenceId.hashCode(), openApp,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.ic_dialog_map)
                 .setContentTitle("📍 Location Reminder")
                 .setContentText("You've arrived at a saved location!")
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setAutoCancel(true);
-        nm.notify(id.hashCode(), builder.build());
+                .setAutoCancel(true)
+                .setContentIntent(pi);
+
+        nm.notify(geofenceId.hashCode(), builder.build());
     }
 
     private void createChannel(Context context) {
@@ -103,9 +155,12 @@ public class GeofenceBroadcastReceiver extends BroadcastReceiver {
         if (nm == null) return;
         if (nm.getNotificationChannel(CHANNEL_ID) != null) return;
         NotificationChannel channel = new NotificationChannel(
-                CHANNEL_ID, "Location Reminders",
+                CHANNEL_ID,
+                "Location Reminders",
                 NotificationManager.IMPORTANCE_HIGH);
-        channel.setDescription("Notifications when you arrive at saved locations");
+        channel.setDescription("Notifies when you arrive at saved locations");
+        channel.enableVibration(true);
+        channel.setVibrationPattern(new long[]{0, 200, 100, 200});
         nm.createNotificationChannel(channel);
     }
 }

@@ -7,15 +7,14 @@
     android:orientation="vertical"
     android:padding="24dp">
 
-    <!-- Drag Handle -->
+    <!-- Handle -->
     <View
         android:layout_width="40dp"
         android:layout_height="4dp"
         android:layout_gravity="center"
         android:layout_marginBottom="24dp"
-        android:background="#1A2244" />
+        android:background="#1A2244"/>
 
-    <!-- Title -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -26,7 +25,7 @@
         android:textStyle="bold"
         android:letterSpacing="-0.02"/>
 
-    <!-- Title Input — unchanged -->
+    <!-- Title -->
     <com.google.android.material.textfield.TextInputLayout
         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
         android:layout_width="match_parent"
@@ -38,7 +37,6 @@
         app:boxCornerRadiusTopStart="16dp"
         app:boxStrokeColor="#4263EB"
         app:hintTextColor="?android:attr/textColorSecondary">
-
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/etTaskTitle"
             android:layout_width="match_parent"
@@ -47,15 +45,10 @@
             android:textColor="?android:attr/textColorPrimary"
             android:textColorHint="?android:attr/textColorSecondary"
             android:inputType="textCapSentences"
-            android:padding="16dp" />
+            android:padding="16dp"/>
     </com.google.android.material.textfield.TextInputLayout>
 
-    <!-- ══════════════════════════════════════════════════ -->
-    <!--   AI CATEGORY CHIP                                 -->
-    <!--   Appears automatically as user types.             -->
-    <!--   Tap to open category picker.                     -->
-    <!--   Controlled by AddTaskBottomSheet.java            -->
-    <!-- ══════════════════════════════════════════════════ -->
+    <!-- AI Category chip -->
     <LinearLayout
         android:id="@+id/layoutCategoryRow"
         android:layout_width="match_parent"
@@ -76,7 +69,6 @@
             app:strokeWidth="1dp"
             app:strokeColor="#1A2244"
             app:cardBackgroundColor="#0D1A33">
-
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -84,14 +76,12 @@
                 android:gravity="center_vertical"
                 android:paddingHorizontal="14dp"
                 android:paddingVertical="8dp">
-
                 <TextView
                     android:id="@+id/tvCategoryEmoji"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="📌"
                     android:textSize="14sp"/>
-
                 <TextView
                     android:id="@+id/tvCategoryLabel"
                     android:layout_width="wrap_content"
@@ -101,7 +91,6 @@
                     android:textColor="#445588"
                     android:textSize="12sp"
                     android:textStyle="bold"/>
-
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -121,7 +110,7 @@
             android:textSize="10sp"/>
     </LinearLayout>
 
-    <!-- Description Input — unchanged -->
+    <!-- Description -->
     <com.google.android.material.textfield.TextInputLayout
         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
         android:layout_width="match_parent"
@@ -133,7 +122,6 @@
         app:boxCornerRadiusTopStart="16dp"
         app:boxStrokeColor="#4263EB"
         app:hintTextColor="?android:attr/textColorSecondary">
-
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/etDescription"
             android:layout_width="match_parent"
@@ -144,10 +132,10 @@
             android:inputType="textMultiLine"
             android:minLines="2"
             android:gravity="top"
-            android:padding="16dp" />
+            android:padding="16dp"/>
     </com.google.android.material.textfield.TextInputLayout>
 
-    <!-- Duration Input — unchanged -->
+    <!-- Duration -->
     <com.google.android.material.textfield.TextInputLayout
         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
         android:layout_width="match_parent"
@@ -159,7 +147,6 @@
         app:boxCornerRadiusTopStart="16dp"
         app:boxStrokeColor="#4263EB"
         app:hintTextColor="?android:attr/textColorSecondary">
-
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/etDuration"
             android:layout_width="match_parent"
@@ -168,15 +155,10 @@
             android:textColor="?android:attr/textColorPrimary"
             android:textColorHint="?android:attr/textColorSecondary"
             android:inputType="number"
-            android:padding="16dp" />
+            android:padding="16dp"/>
     </com.google.android.material.textfield.TextInputLayout>
 
-    <!-- ══════════════════════════════════════════════════ -->
-    <!--   AI DURATION SUGGESTION                           -->
-    <!--   Appears below duration field when predicted.     -->
-    <!--   Tap to auto-fill duration.                       -->
-    <!--   Hides if user types their own duration.          -->
-    <!-- ══════════════════════════════════════════════════ -->
+    <!-- AI Duration suggestion -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/cardDurationSuggestion"
         android:layout_width="wrap_content"
@@ -190,7 +172,6 @@
         app:strokeWidth="1dp"
         app:strokeColor="#0D3A1A"
         app:cardBackgroundColor="#061A10">
-
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -198,16 +179,14 @@
             android:gravity="center_vertical"
             android:paddingHorizontal="14dp"
             android:paddingVertical="8dp">
-
             <TextView
                 android:id="@+id/tvDurationSuggestion"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="⏱  ~45 min  ·  based on your history"
+                android:text="⏱  ~45 min"
                 android:textColor="#20C997"
                 android:textSize="11sp"
                 android:textStyle="bold"/>
-
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -218,13 +197,12 @@
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
-    <!-- Type selector — exact original IDs kept, unchanged -->
+    <!-- Type selector -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="20dp"
         android:orientation="horizontal">
-
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnTypeRoutine"
             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
@@ -235,8 +213,7 @@
             android:text="Daily Routine"
             android:textSize="13sp"
             app:cornerRadius="16dp"
-            app:strokeColor="#4263EB" />
-
+            app:strokeColor="#4263EB"/>
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnTypeTask"
             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
@@ -248,10 +225,10 @@
             android:textSize="13sp"
             android:textColor="?android:attr/textColorSecondary"
             app:cornerRadius="16dp"
-            app:strokeColor="?android:attr/textColorTertiary" />
+            app:strokeColor="?android:attr/textColorTertiary"/>
     </LinearLayout>
 
-    <!-- Time Picker — unchanged -->
+    <!-- Time Picker — always shown -->
     <LinearLayout
         android:id="@+id/btnPickTime"
         android:layout_width="match_parent"
@@ -262,13 +239,11 @@
         android:padding="16dp"
         android:clickable="true"
         android:focusable="true">
-
         <ImageView
             android:layout_width="22dp"
             android:layout_height="22dp"
             android:src="@drawable/ic_timer"
-            app:tint="#4263EB" />
-
+            app:tint="#4263EB"/>
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -276,8 +251,7 @@
             android:layout_weight="1"
             android:text="Time"
             android:textColor="?android:attr/textColorSecondary"
-            android:textSize="15sp" />
-
+            android:textSize="15sp"/>
         <TextView
             android:id="@+id/tvSelectedTime"
             android:layout_width="wrap_content"
@@ -285,10 +259,13 @@
             android:text="10:00 AM"
             android:textColor="?android:attr/textColorPrimary"
             android:textSize="15sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"/>
     </LinearLayout>
 
-    <!-- Date Picker — unchanged -->
+    <!-- ══════════════════════════════════════════════════ -->
+    <!--   DATE PICKER — only shown for TASKS               -->
+    <!--   Visibility controlled in updateTypeSelection()   -->
+    <!-- ══════════════════════════════════════════════════ -->
     <LinearLayout
         android:id="@+id/btnPickDate"
         android:layout_width="match_parent"
@@ -298,14 +275,13 @@
         android:gravity="center_vertical"
         android:padding="16dp"
         android:clickable="true"
-        android:focusable="true">
-
+        android:focusable="true"
+        android:visibility="gone">
         <ImageView
             android:layout_width="22dp"
             android:layout_height="22dp"
             android:src="@drawable/ic_calendar"
-            app:tint="#4263EB" />
-
+            app:tint="#4263EB"/>
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -313,8 +289,7 @@
             android:layout_weight="1"
             android:text="Date"
             android:textColor="?android:attr/textColorSecondary"
-            android:textSize="15sp" />
-
+            android:textSize="15sp"/>
         <TextView
             android:id="@+id/tvSelectedDate"
             android:layout_width="wrap_content"
@@ -322,10 +297,13 @@
             android:text="Today"
             android:textColor="?android:attr/textColorPrimary"
             android:textSize="15sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"/>
     </LinearLayout>
 
-    <!-- Repeat Picker — unchanged -->
+    <!-- ══════════════════════════════════════════════════ -->
+    <!--   REPEAT PICKER — only shown for ROUTINES          -->
+    <!--   Visibility controlled in updateTypeSelection()   -->
+    <!-- ══════════════════════════════════════════════════ -->
     <LinearLayout
         android:id="@+id/btnPickRepeat"
         android:layout_width="match_parent"
@@ -335,14 +313,13 @@
         android:gravity="center_vertical"
         android:padding="16dp"
         android:clickable="true"
-        android:focusable="true">
-
+        android:focusable="true"
+        android:visibility="visible">
         <ImageView
             android:layout_width="22dp"
             android:layout_height="22dp"
             android:src="@drawable/ic_calendar"
-            app:tint="#4263EB" />
-
+            app:tint="#4263EB"/>
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -350,8 +327,7 @@
             android:layout_weight="1"
             android:text="Repeat"
             android:textColor="?android:attr/textColorSecondary"
-            android:textSize="15sp" />
-
+            android:textSize="15sp"/>
         <TextView
             android:id="@+id/tvSelectedRepeat"
             android:layout_width="wrap_content"
@@ -359,10 +335,10 @@
             android:text="None"
             android:textColor="?android:attr/textColorPrimary"
             android:textSize="15sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"/>
     </LinearLayout>
 
-    <!-- Save Button — unchanged -->
+    <!-- Save -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnSave"
         android:layout_width="match_parent"
@@ -375,7 +351,7 @@
         app:cornerRadius="20dp"
         app:rippleColor="#40FFFFFF"/>
 
-    <!-- Cancel Button — unchanged -->
+    <!-- Cancel -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnCancel"
         style="@style/Widget.MaterialComponents.Button.TextButton"

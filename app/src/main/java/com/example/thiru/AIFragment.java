@@ -84,24 +84,15 @@ public class AIFragment extends Fragment {
     private SpeechRecognizer speechRecognizer;
     private ObjectAnimator   micPulseAnimator;
 
-    // ══════════════════════════════════════════════════════
-    //   RECORD_AUDIO permission launcher
-    //   MUST be a field — registered before onStart
-    // ══════════════════════════════════════════════════════
     private final ActivityResultLauncher<String> micPermLauncher =
             registerForActivityResult(
                     new ActivityResultContracts.RequestPermission(),
                     granted -> {
-                        if (granted) {
-                            startVoiceListening();
-                        } else {
-                            showMicPermissionDialog();
-                        }
+                        if (granted) startVoiceListening();
+                        else showMicPermissionDialog();
                     });
 
-    public AIFragment() {
-        super(R.layout.fragment_ai);
-    }
+    public AIFragment() { super(R.layout.fragment_ai); }
 
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
@@ -125,7 +116,6 @@ public class AIFragment extends Fragment {
         updateHeader();
         if (tvAISubtitle != null) tvAISubtitle.setText(getSubtitle());
 
-        // ── RecyclerView ──────────────────────────────────
         LinearLayoutManager llm = new LinearLayoutManager(getContext());
         llm.setStackFromEnd(true);
         rvChat.setLayoutManager(llm);
@@ -134,7 +124,6 @@ public class AIFragment extends Fragment {
 
         buildQuickChips();
 
-        // ── Observe DB ────────────────────────────────────
         FocusDatabase.getInstance(getContext()).actionDao().getAllItems()
                 .observe(getViewLifecycleOwner(), items ->
                         currentItems = items != null ? items : new ArrayList<>());
@@ -147,14 +136,11 @@ public class AIFragment extends Fragment {
 
         // ── Mic button ────────────────────────────────────
         btnMicAI.setOnClickListener(v -> {
-            if (isListening) {
-                stopVoiceListening();
-            } else {
-                requestMicAndListen();
-            }
+            if (isListening) stopVoiceListening();
+            else requestMicAndListen();
         });
 
-        // ── Enter key ─────────────────────────────────────
+        // ── Enter key sends message ───────────────────────
         etAIInput.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_SEND) {
                 animateSendButtonPress();
@@ -164,24 +150,25 @@ public class AIFragment extends Fragment {
             return false;
         });
 
-        // ── Keyboard — untouched from working version ─────
+        // ══════════════════════════════════════════════════
+        //   KEYBOARD — touch and click both trigger it.
+        //   setOnClickListener handles a simple tap.
+        //   setOnTouchListener handles ACTION_UP for cases
+        //   where the click event is consumed by a parent.
+        //   Neither sets return true — so scrolling still
+        //   works normally on the RecyclerView above.
+        // ══════════════════════════════════════════════════
+        etAIInput.setOnClickListener(v -> {
+            etAIInput.requestFocus();
+            showKeyboard();
+        });
+
         etAIInput.setOnTouchListener((v, event) -> {
             if (event.getAction() == MotionEvent.ACTION_UP) {
-                v.requestFocus();
-                showKeyboard(v);
+                etAIInput.requestFocus();
+                showKeyboard();
             }
             return false;
-        });
-
-        etAIInput.setOnFocusChangeListener((v, hasFocus) -> {
-            if (hasFocus) showKeyboard(v);
-        });
-
-        // ── IME inset padding — untouched ─────────────────
-        ViewCompat.setOnApplyWindowInsetsListener(view, (v, insets) -> {
-            int imeBottom = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom;
-            v.setPadding(0, 0, 0, imeBottom > 0 ? imeBottom : 0);
-            return insets;
         });
 
         // ── Send button state animation on typing ─────────
@@ -200,7 +187,6 @@ public class AIFragment extends Fragment {
         updateStatusBadge();
         initSpeechRecognizer();
 
-        // ── Chat persistence ──────────────────────────────
         boolean restored = loadChatHistory();
         if (!restored) {
             new Handler(Looper.getMainLooper()).postDelayed(
@@ -214,113 +200,159 @@ public class AIFragment extends Fragment {
     }
 
     // ══════════════════════════════════════════════════════
-    //   SPEECH RECOGNIZER — init once, reuse
-    //   Created on main thread (required by Android)
-    //   Destroyed in onDestroyView to prevent leaks
+    //   KEYBOARD — DEFINITIVE FIX
+    //
+    //   Root cause: edge-to-edge mode
+    //   (WindowCompat.setDecorFitsSystemWindows = false)
+    //   breaks all keyboard calls made on child views.
+    //   CoordinatorLayout consumes IME insets before they
+    //   reach any child view's WindowInsetsController.
+    //
+    //   Fix: get WindowInsetsControllerCompat from the
+    //   WINDOW DECOR VIEW — the only view that always has
+    //   direct access to the window in edge-to-edge mode.
+    //
+    //   Fallback: InputMethodManager.SHOW_FORCED on a
+    //   post() delay so the view is measured + focused.
+    // ══════════════════════════════════════════════════════
+    private void showKeyboard() {
+        if (!isAdded() || etAIInput == null) return;
+
+        etAIInput.requestFocus();
+
+        // Primary method — DecorView controller
+        try {
+            View decorView = requireActivity().getWindow().getDecorView();
+            WindowInsetsControllerCompat controller =
+                    ViewCompat.getWindowInsetsController(decorView);
+            if (controller != null) {
+                controller.show(WindowInsetsCompat.Type.ime());
+                return; // success — done
+            }
+        } catch (Exception ignored) {}
+
+        // Fallback — IMM SHOW_FORCED after view is laid out
+        etAIInput.post(() -> {
+            if (!isAdded() || etAIInput == null) return;
+            try {
+                InputMethodManager imm = (InputMethodManager)
+                        requireContext().getSystemService(Context.INPUT_METHOD_SERVICE);
+                if (imm != null)
+                    imm.showSoftInput(etAIInput, InputMethodManager.SHOW_FORCED);
+            } catch (Exception ignored) {}
+        });
+    }
+
+    private void hideKeyboard() {
+        if (!isAdded() || etAIInput == null) return;
+
+        // Primary method — DecorView controller
+        try {
+            View decorView = requireActivity().getWindow().getDecorView();
+            WindowInsetsControllerCompat controller =
+                    ViewCompat.getWindowInsetsController(decorView);
+            if (controller != null) {
+                controller.hide(WindowInsetsCompat.Type.ime());
+                return;
+            }
+        } catch (Exception ignored) {}
+
+        // Fallback — IMM
+        try {
+            InputMethodManager imm = (InputMethodManager)
+                    requireContext().getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (imm != null)
+                imm.hideSoftInputFromWindow(etAIInput.getWindowToken(), 0);
+        } catch (Exception ignored) {}
+    }
+
+    // ══════════════════════════════════════════════════════
+    //   SPEECH RECOGNIZER
     // ══════════════════════════════════════════════════════
 
     private void initSpeechRecognizer() {
         if (!isAdded()) return;
         try {
-            if (SpeechRecognizer.isRecognitionAvailable(requireContext())) {
-                speechRecognizer = SpeechRecognizer.createSpeechRecognizer(requireContext());
-                speechRecognizer.setRecognitionListener(new RecognitionListener() {
-
-                    @Override
-                    public void onReadyForSpeech(Bundle params) {
-                        // Mic is ready — animate to red pulsing
-                        new Handler(Looper.getMainLooper()).post(() -> {
-                            if (isAdded()) setMicListeningState(true);
-                        });
-                    }
-
-                    @Override
-                    public void onBeginningOfSpeech() {
-                        // User started speaking — stronger pulse
-                        new Handler(Looper.getMainLooper()).post(() -> {
-                            if (isAdded() && cardMicBtn != null)
-                                cardMicBtn.animate().scaleX(1.1f).scaleY(1.1f)
-                                        .setDuration(100).start();
-                        });
-                    }
-
-                    @Override
-                    public void onRmsChanged(float rmsdB) {
-                        // Pulse scale based on voice volume
-                        if (!isAdded() || cardMicBtn == null) return;
-                        float scale = 1f + Math.min(rmsdB / 100f, 0.15f);
-                        new Handler(Looper.getMainLooper()).post(() -> {
-                            if (isAdded())
-                                cardMicBtn.animate().scaleX(scale).scaleY(scale)
-                                        .setDuration(50).start();
-                        });
-                    }
-
-                    @Override
-                    public void onBufferReceived(byte[] buffer) {}
-
-                    @Override
-                    public void onEndOfSpeech() {
-                        new Handler(Looper.getMainLooper()).post(() -> {
-                            if (isAdded()) setMicListeningState(false);
-                        });
-                    }
-
-                    @Override
-                    public void onError(int error) {
-                        Log.w(TAG, "SpeechRecognizer error: " + error);
-                        new Handler(Looper.getMainLooper()).post(() -> {
-                            if (!isAdded()) return;
-                            setMicListeningState(false);
-                            // Only show error for real failures, not silence
-                            if (error != SpeechRecognizer.ERROR_NO_MATCH
-                                    && error != SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
-                                addMessage(new AIEngine.AIMessage(
-                                        "🎤 Couldn't hear that — please try again.", false));
-                            }
-                        });
-                    }
-
-                    @Override
-                    public void onResults(Bundle results) {
-                        new Handler(Looper.getMainLooper()).post(() -> {
-                            if (!isAdded()) return;
-                            setMicListeningState(false);
-                            ArrayList<String> matches = results.getStringArrayList(
-                                    SpeechRecognizer.RESULTS_RECOGNITION);
-                            if (matches != null && !matches.isEmpty()) {
-                                handleVoiceResult(matches.get(0));
-                            }
-                        });
-                    }
-
-                    @Override
-                    public void onPartialResults(Bundle partialResults) {
-                        // Show partial text in EditText as user speaks
-                        ArrayList<String> partial = partialResults.getStringArrayList(
-                                SpeechRecognizer.RESULTS_RECOGNITION);
-                        if (partial != null && !partial.isEmpty()) {
-                            new Handler(Looper.getMainLooper()).post(() -> {
-                                if (isAdded() && etAIInput != null)
-                                    etAIInput.setText(partial.get(0));
-                            });
-                        }
-                    }
-
-                    @Override
-                    public void onEvent(int eventType, Bundle params) {}
-                });
-            } else {
-                Log.w(TAG, "Speech recognition not available on this device");
+            if (!SpeechRecognizer.isRecognitionAvailable(requireContext())) {
+                Log.w(TAG, "Speech recognition not available");
+                return;
             }
+            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(requireContext());
+            speechRecognizer.setRecognitionListener(new RecognitionListener() {
+
+                @Override public void onReadyForSpeech(Bundle params) {
+                    new Handler(Looper.getMainLooper()).post(() -> {
+                        if (isAdded()) setMicListeningState(true);
+                    });
+                }
+
+                @Override public void onBeginningOfSpeech() {
+                    new Handler(Looper.getMainLooper()).post(() -> {
+                        if (isAdded() && cardMicBtn != null)
+                            cardMicBtn.animate().scaleX(1.1f).scaleY(1.1f)
+                                    .setDuration(100).start();
+                    });
+                }
+
+                @Override public void onRmsChanged(float rmsdB) {
+                    if (!isAdded() || cardMicBtn == null) return;
+                    float scale = 1f + Math.min(Math.max(rmsdB / 100f, 0f), 0.15f);
+                    new Handler(Looper.getMainLooper()).post(() -> {
+                        if (isAdded())
+                            cardMicBtn.animate().scaleX(scale).scaleY(scale)
+                                    .setDuration(50).start();
+                    });
+                }
+
+                @Override public void onBufferReceived(byte[] buffer) {}
+
+                @Override public void onEndOfSpeech() {
+                    new Handler(Looper.getMainLooper()).post(() -> {
+                        if (isAdded()) setMicListeningState(false);
+                    });
+                }
+
+                @Override public void onError(int error) {
+                    Log.w(TAG, "SpeechRecognizer error: " + error);
+                    new Handler(Looper.getMainLooper()).post(() -> {
+                        if (!isAdded()) return;
+                        setMicListeningState(false);
+                        if (error != SpeechRecognizer.ERROR_NO_MATCH
+                                && error != SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
+                            addMessage(new AIEngine.AIMessage(
+                                    "🎤 Couldn't hear that — please try again.", false));
+                        }
+                    });
+                }
+
+                @Override public void onResults(Bundle results) {
+                    new Handler(Looper.getMainLooper()).post(() -> {
+                        if (!isAdded()) return;
+                        setMicListeningState(false);
+                        ArrayList<String> matches = results.getStringArrayList(
+                                SpeechRecognizer.RESULTS_RECOGNITION);
+                        if (matches != null && !matches.isEmpty())
+                            handleVoiceResult(matches.get(0));
+                    });
+                }
+
+                @Override public void onPartialResults(Bundle partial) {
+                    ArrayList<String> p = partial.getStringArrayList(
+                            SpeechRecognizer.RESULTS_RECOGNITION);
+                    if (p != null && !p.isEmpty()) {
+                        new Handler(Looper.getMainLooper()).post(() -> {
+                            if (isAdded() && etAIInput != null)
+                                etAIInput.setText(p.get(0));
+                        });
+                    }
+                }
+
+                @Override public void onEvent(int eventType, Bundle params) {}
+            });
         } catch (Exception e) {
             Log.e(TAG, "initSpeechRecognizer: " + e.getMessage());
         }
     }
-
-    // ══════════════════════════════════════════════════════
-    //   VOICE — REQUEST PERMISSION THEN LISTEN
-    // ══════════════════════════════════════════════════════
 
     private void requestMicAndListen() {
         if (!isAdded()) return;
@@ -345,7 +377,6 @@ public class AIFragment extends Fragment {
             intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Say a task or question…");
             isListening = true;
             speechRecognizer.startListening(intent);
-            Log.d(TAG, "Voice listening started");
         } catch (Exception e) {
             Log.e(TAG, "startVoiceListening: " + e.getMessage());
             isListening = false;
@@ -361,34 +392,23 @@ public class AIFragment extends Fragment {
         setMicListeningState(false);
     }
 
-    // ══════════════════════════════════════════════════════
-    //   HANDLE VOICE RESULT
-    //   If it sounds like an action → auto-send to Groq
-    //   Otherwise → fill EditText, user taps send
-    // ══════════════════════════════════════════════════════
-
     private void handleVoiceResult(String text) {
         if (!isAdded() || text == null || text.trim().isEmpty()) return;
         String clean = text.trim();
-
-        // Capitalise first letter
         clean = Character.toUpperCase(clean.charAt(0)) + clean.substring(1);
-
         etAIInput.setText(clean);
         etAIInput.setSelection(clean.length());
 
-        // Auto-send if it's clearly an action command
         String lower = clean.toLowerCase();
         boolean isAction = lower.contains("add task")
                 || lower.contains("create task")
                 || lower.contains("add routine")
                 || lower.contains("create routine")
-                || lower.contains("schedule task")
+                || lower.contains("schedule")
                 || lower.contains("remind me")
                 || lower.contains("set alarm");
 
         if (isAction) {
-            // Small delay so user sees the text before it sends
             new Handler(Looper.getMainLooper()).postDelayed(() -> {
                 if (isAdded()) {
                     animateSendButtonPress();
@@ -396,111 +416,82 @@ public class AIFragment extends Fragment {
                 }
             }, 600);
         }
-        // Otherwise user sees the text and taps send manually
     }
 
-    // ══════════════════════════════════════════════════════
-    //   MIC BUTTON ANIMATION
-    //   Idle:      dark bg, grey icon
-    //   Listening: red bg, white icon, pulse scale loop
-    // ══════════════════════════════════════════════════════
-
+    // ── Mic button visual state ───────────────────────────
     private void setMicListeningState(boolean listening) {
         if (!isAdded() || cardMicBtn == null || btnMicAI == null) return;
         isListening = listening;
-
-        // Stop previous pulse
         if (micPulseAnimator != null) {
             micPulseAnimator.cancel();
             micPulseAnimator = null;
         }
-
         if (listening) {
-            // Red background
             animateCardColor(cardMicBtn,
-                    Color.parseColor("#1A1A3A"),
-                    Color.parseColor("#C0392B"), 200);
+                    Color.parseColor("#1A1A3A"), Color.parseColor("#C0392B"), 200);
             btnMicAI.setColorFilter(Color.WHITE);
             cardMicBtn.setScaleX(1f);
             cardMicBtn.setScaleY(1f);
-
-            // Repeating pulse
             micPulseAnimator = ObjectAnimator.ofFloat(cardMicBtn, "scaleX", 1f, 1.12f);
             micPulseAnimator.setDuration(500);
             micPulseAnimator.setRepeatCount(ObjectAnimator.INFINITE);
             micPulseAnimator.setRepeatMode(ObjectAnimator.REVERSE);
             micPulseAnimator.start();
-
-            ObjectAnimator pulseY = ObjectAnimator.ofFloat(cardMicBtn, "scaleY", 1f, 1.12f);
-            pulseY.setDuration(500);
-            pulseY.setRepeatCount(ObjectAnimator.INFINITE);
-            pulseY.setRepeatMode(ObjectAnimator.REVERSE);
-            pulseY.start();
-
+            ObjectAnimator py = ObjectAnimator.ofFloat(cardMicBtn, "scaleY", 1f, 1.12f);
+            py.setDuration(500);
+            py.setRepeatCount(ObjectAnimator.INFINITE);
+            py.setRepeatMode(ObjectAnimator.REVERSE);
+            py.start();
         } else {
-            // Restore idle state
             animateCardColor(cardMicBtn,
-                    Color.parseColor("#C0392B"),
-                    Color.parseColor("#1A1A3A"), 200);
+                    Color.parseColor("#C0392B"), Color.parseColor("#1A1A3A"), 200);
             btnMicAI.setColorFilter(Color.parseColor("#445577"));
             cardMicBtn.animate().scaleX(1f).scaleY(1f).setDuration(150)
                     .setInterpolator(new OvershootInterpolator(2f)).start();
         }
     }
 
-    private void animateCardColor(MaterialCardView card, int from, int to, int duration) {
-        ValueAnimator anim = ValueAnimator.ofObject(new ArgbEvaluator(), from, to);
-        anim.setDuration(duration);
-        anim.addUpdateListener(a -> {
-            if (isAdded()) card.setCardBackgroundColor((int) a.getAnimatedValue());
+    private void animateCardColor(MaterialCardView card, int from, int to, int dur) {
+        ValueAnimator a = ValueAnimator.ofObject(new ArgbEvaluator(), from, to);
+        a.setDuration(dur);
+        a.addUpdateListener(anim -> {
+            if (isAdded()) card.setCardBackgroundColor((int) anim.getAnimatedValue());
         });
-        anim.start();
+        a.start();
     }
 
     private void showMicPermissionDialog() {
         if (!isAdded()) return;
         new AlertDialog.Builder(requireContext())
                 .setTitle("Microphone Permission")
-                .setMessage("Allow FocusFlow to use the microphone so you can add tasks by voice.")
+                .setMessage("Allow FocusFlow to use the microphone to add tasks by voice.")
                 .setPositiveButton("Allow", (d, w) ->
                         micPermLauncher.launch(Manifest.permission.RECORD_AUDIO))
                 .setNegativeButton("Not now", null)
                 .show();
     }
 
-    // ══════════════════════════════════════════════════════
-    //   SEND BUTTON ANIMATIONS — untouched
-    // ══════════════════════════════════════════════════════
-
+    // ── Send button animations ────────────────────────────
     private void animateSendButtonState(boolean active) {
         if (cardSendBtn == null || btnSendAI == null) return;
-        int fromCard   = active ? Color.parseColor("#1A1A3A") : Color.parseColor("#4263EB");
-        int toCard     = active ? Color.parseColor("#4263EB") : Color.parseColor("#1A1A3A");
-        int fromIcon   = active ? Color.parseColor("#445577") : Color.parseColor("#FFFFFF");
-        int toIcon     = active ? Color.parseColor("#FFFFFF") : Color.parseColor("#445577");
-        int fromStroke = active ? Color.parseColor("#2A3A7E") : Color.parseColor("#4263EB");
-        int toStroke   = active ? Color.parseColor("#4263EB") : Color.parseColor("#2A3A7E");
+        int fromCard = active ? 0xFF1A1A3A : 0xFF4263EB;
+        int toCard   = active ? 0xFF4263EB : 0xFF1A1A3A;
+        int fromIcon = active ? 0xFF445577 : 0xFFFFFFFF;
+        int toIcon   = active ? 0xFFFFFFFF : 0xFF445577;
 
-        ValueAnimator cardAnim = ValueAnimator.ofObject(new ArgbEvaluator(), fromCard, toCard);
-        cardAnim.setDuration(250);
-        cardAnim.addUpdateListener(a -> {
+        ValueAnimator c = ValueAnimator.ofObject(new ArgbEvaluator(), fromCard, toCard);
+        c.setDuration(250);
+        c.addUpdateListener(a -> {
             if (isAdded()) cardSendBtn.setCardBackgroundColor((int) a.getAnimatedValue());
         });
-        cardAnim.start();
+        c.start();
 
-        ValueAnimator iconAnim = ValueAnimator.ofObject(new ArgbEvaluator(), fromIcon, toIcon);
-        iconAnim.setDuration(250);
-        iconAnim.addUpdateListener(a -> {
+        ValueAnimator ic = ValueAnimator.ofObject(new ArgbEvaluator(), fromIcon, toIcon);
+        ic.setDuration(250);
+        ic.addUpdateListener(a -> {
             if (isAdded()) btnSendAI.setColorFilter((int) a.getAnimatedValue());
         });
-        iconAnim.start();
-
-        ValueAnimator strokeAnim = ValueAnimator.ofObject(new ArgbEvaluator(), fromStroke, toStroke);
-        strokeAnim.setDuration(250);
-        strokeAnim.addUpdateListener(a -> {
-            if (isAdded()) cardSendBtn.setStrokeColor((int) a.getAnimatedValue());
-        });
-        strokeAnim.start();
+        ic.start();
 
         if (active) {
             cardSendBtn.animate().scaleX(1.08f).scaleY(1.08f).setDuration(120)
@@ -522,10 +513,7 @@ public class AIFragment extends Fragment {
                 }).start();
     }
 
-    // ══════════════════════════════════════════════════════
-    //   CHAT PERSISTENCE — save & load
-    // ══════════════════════════════════════════════════════
-
+    // ── Chat persistence ──────────────────────────────────
     private void saveChatHistory() {
         if (!isAdded()) return;
         try {
@@ -573,7 +561,6 @@ public class AIFragment extends Fragment {
                 messages.add(new AIEngine.AIMessage(text, isUser, chips));
             }
             chatAdapter.notifyDataSetChanged();
-            Log.d(TAG, "Restored " + messages.size() + " messages");
             return true;
         } catch (Exception e) {
             Log.e(TAG, "loadChatHistory: " + e.getMessage());
@@ -581,90 +568,34 @@ public class AIFragment extends Fragment {
         }
     }
 
-    // ══════════════════════════════════════════════════════
-    //   KEYBOARD — untouched from working version
-    // ══════════════════════════════════════════════════════
-
-    private void showKeyboard(View target) {
-        if (!isAdded() || target == null) return;
-        target.post(() -> {
-            if (!isAdded()) return;
-            try {
-                WindowInsetsControllerCompat controller =
-                        ViewCompat.getWindowInsetsController(target);
-                if (controller != null) {
-                    controller.show(WindowInsetsCompat.Type.ime());
-                    return;
-                }
-            } catch (Exception e) {
-                Log.w(TAG, "WindowInsetsController failed: " + e.getMessage());
-            }
-            target.postDelayed(() -> {
-                if (!isAdded()) return;
-                try {
-                    InputMethodManager imm = (InputMethodManager)
-                            requireContext().getSystemService(Context.INPUT_METHOD_SERVICE);
-                    if (imm != null)
-                        imm.showSoftInput(target, InputMethodManager.SHOW_FORCED);
-                } catch (Exception e) {
-                    Log.e(TAG, "IMM fallback: " + e.getMessage());
-                }
-            }, 150);
-        });
-    }
-
-    private void hideKeyboard() {
-        if (!isAdded() || etAIInput == null) return;
-        try {
-            WindowInsetsControllerCompat c =
-                    ViewCompat.getWindowInsetsController(etAIInput);
-            if (c != null) { c.hide(WindowInsetsCompat.Type.ime()); return; }
-            InputMethodManager imm = (InputMethodManager)
-                    requireContext().getSystemService(Context.INPUT_METHOD_SERVICE);
-            if (imm != null) imm.hideSoftInputFromWindow(etAIInput.getWindowToken(), 0);
-        } catch (Exception ignored) {}
-    }
-
-    // ══════════════════════════════════════════════════════
-    //   LIFECYCLE
-    // ══════════════════════════════════════════════════════
-
-    @Override
-    public void onResume() {
+    // ── Lifecycle ─────────────────────────────────────────
+    @Override public void onResume() {
         super.onResume();
         updateStatusBadge();
         loadUserName();
         updateHeader();
     }
 
-    @Override
-    public void onPause() {
+    @Override public void onPause() {
         super.onPause();
         saveChatHistory();
         if (isListening) stopVoiceListening();
     }
 
-    @Override
-    public void onDestroyView() {
+    @Override public void onDestroyView() {
         super.onDestroyView();
-        // ── Destroy SpeechRecognizer to prevent memory leak ──
         if (micPulseAnimator != null) {
             micPulseAnimator.cancel();
             micPulseAnimator = null;
         }
         if (speechRecognizer != null) {
-            try {
-                speechRecognizer.destroy();
-            } catch (Exception ignored) {}
+            try { speechRecognizer.destroy(); } catch (Exception ignored) {}
             speechRecognizer = null;
         }
         isListening = false;
     }
 
-    // ══════════════════════════════════════════════════════
-    //   HEADER
-    // ══════════════════════════════════════════════════════
-
+    // ── Header ────────────────────────────────────────────
     private void loadUserName() {
         SharedPreferences prefs = requireContext()
                 .getSharedPreferences("AppPrefs", Context.MODE_PRIVATE);
@@ -679,10 +610,7 @@ public class AIFragment extends Fragment {
                 : getGreeting() + ", " + userName + " 👋");
     }
 
-    // ══════════════════════════════════════════════════════
-    //   WELCOME MESSAGE
-    // ══════════════════════════════════════════════════════
-
+    // ── Welcome message ───────────────────────────────────
     private void showPersonalWelcome() {
         if (!isAdded()) return;
         int level   = XPManager.getLevel(requireContext());
@@ -707,8 +635,10 @@ public class AIFragment extends Fragment {
             msg.append(getGreeting()).append(", **").append(userName)
                     .append("**! ").append(badge).append("\n\n");
         }
-        msg.append("You're **Level ").append(level).append(" — ").append(rank).append("**");
-        if (streak > 1) msg.append(" with a **").append(streak).append("-day streak** 🔥");
+        msg.append("You're **Level ").append(level)
+                .append(" — ").append(rank).append("**");
+        if (streak > 1)
+            msg.append(" with a **").append(streak).append("-day streak** 🔥");
         msg.append(".\n");
 
         if (total == 0) {
@@ -724,9 +654,9 @@ public class AIFragment extends Fragment {
 
         int needed = Math.max(0, nextXP - xp);
         if (needed > 0 && needed < 80)
-            msg.append("\n\nOnly **").append(needed).append(" XP** to your next rank!");
+            msg.append("\n\nOnly **").append(needed).append(" XP** to next rank!");
 
-        msg.append("\n\nTry typing or tap 🎤 and say: **\"Add task meeting at 5pm\"**");
+        msg.append("\n\nTry: **\"Add task meeting at 5pm\"** or tap 🎤");
 
         List<String> chips = buildContextChips(total, completed, pending);
         addMessage(new AIEngine.AIMessage(msg.toString(), false, chips));
@@ -745,10 +675,7 @@ public class AIFragment extends Fragment {
         return chips;
     }
 
-    // ══════════════════════════════════════════════════════
-    //   SEND MESSAGE
-    // ══════════════════════════════════════════════════════
-
+    // ── Send message ──────────────────────────────────────
     private void sendMessage() {
         if (etAIInput == null) return;
         String text = etAIInput.getText().toString().trim();
@@ -763,7 +690,7 @@ public class AIFragment extends Fragment {
         showTyping(true);
 
         final List<AIEngine.AIMessage> historySnap = new ArrayList<>(messages);
-        final List<ActionItem> itemsSnap           = new ArrayList<>(currentItems);
+        final List<ActionItem>         itemsSnap   = new ArrayList<>(currentItems);
         final String query                         = text;
 
         GroqService.ask(requireContext(), historySnap, query, itemsSnap,
@@ -775,7 +702,8 @@ public class AIFragment extends Fragment {
                         updateStatusBadge();
                         if (result.wasOnline) {
                             if (result.actionType.equals(GroqService.ACTION_CREATE_TASK)
-                                    || result.actionType.equals(GroqService.ACTION_CREATE_ROUTINE)) {
+                                    || result.actionType.equals(
+                                    GroqService.ACTION_CREATE_ROUTINE)) {
                                 executeAIAction(result);
                             } else {
                                 addMessage(new AIEngine.AIMessage(result.text, false));
@@ -795,10 +723,7 @@ public class AIFragment extends Fragment {
                 });
     }
 
-    // ══════════════════════════════════════════════════════
-    //   AI ACTION ENGINE
-    // ══════════════════════════════════════════════════════
-
+    // ── AI Action Engine ──────────────────────────────────
     private void executeAIAction(GroqService.GroqResult result) {
         if (result.actionData == null || !isAdded()) return;
         try {
@@ -807,7 +732,7 @@ public class AIFragment extends Fragment {
             String title    = data.optString("title", "New Task").trim();
             int hour        = data.optInt("hour", 9);
             int minute      = data.optInt("minute", 0);
-            String timeStr  = String.format("%02d:%02d", hour, minute);
+            String timeStr  = String.format(Locale.getDefault(), "%02d:%02d", hour, minute);
             String desc     = data.optString("description", "");
 
             if (!title.isEmpty())
@@ -825,11 +750,11 @@ public class AIFragment extends Fragment {
 
             if (action.equals(GroqService.ACTION_CREATE_ROUTINE)) {
                 item.type       = "routines";
-                item.repeatMode = "daily";
+                item.repeatMode = "Daily";
                 item.year       = 0; item.month = 0; item.day = 0;
             } else {
                 item.type       = "tasks";
-                item.repeatMode = "none";
+                item.repeatMode = "None";
                 Calendar cal    = Calendar.getInstance();
                 item.year       = data.optInt("year",  cal.get(Calendar.YEAR));
                 item.month      = data.optInt("month", cal.get(Calendar.MONTH) + 1) - 1;
@@ -857,7 +782,7 @@ public class AIFragment extends Fragment {
                     new Handler(Looper.getMainLooper()).post(() -> {
                         if (!isAdded()) return;
                         addMessage(new AIEngine.AIMessage(
-                                "⚠️ Couldn't save that — please try again.", false));
+                                "⚠️ Couldn't save — please try again.", false));
                     });
                 }
             });
@@ -867,15 +792,13 @@ public class AIFragment extends Fragment {
         }
     }
 
-    // ══════════════════════════════════════════════════════
-    //   SCHEDULE ALARM
-    // ══════════════════════════════════════════════════════
-
+    // ── Schedule alarm ────────────────────────────────────
     private void scheduleAlarmForItem(ActionItem item) {
         if (!isAdded()) return;
         try {
             Context ctx = requireContext();
-            AlarmManager am = (AlarmManager) ctx.getSystemService(Context.ALARM_SERVICE);
+            AlarmManager am = (AlarmManager)
+                    ctx.getSystemService(Context.ALARM_SERVICE);
             if (am == null) return;
 
             Calendar cal = Calendar.getInstance();
@@ -884,7 +807,7 @@ public class AIFragment extends Fragment {
             cal.set(Calendar.SECOND,      0);
             cal.set(Calendar.MILLISECOND, 0);
 
-            if (item.type.equals("tasks") && item.year > 0) {
+            if ("tasks".equals(item.type) && item.year > 0) {
                 cal.set(Calendar.YEAR,         item.year);
                 cal.set(Calendar.MONTH,        item.month);
                 cal.set(Calendar.DAY_OF_MONTH, item.day);
@@ -896,52 +819,48 @@ public class AIFragment extends Fragment {
             if (cal.getTimeInMillis() <= System.currentTimeMillis()) return;
 
             Intent intent = new Intent(ctx, AlarmReceiver.class);
-            intent.setAction("com.example.thiru.ALARM_TRIGGER");
-            intent.putExtra("item_id",    item.id);
-            intent.putExtra("item_title", item.title);
-            intent.putExtra("item_type",  item.type);
+            intent.putExtra("TASK_TITLE",     item.title);
+            intent.putExtra("IS_PRE_WARNING", false);
 
-            PendingIntent pi = PendingIntent.getBroadcast(ctx, item.id, intent,
+            int reqCode = (int)(cal.getTimeInMillis() % Integer.MAX_VALUE);
+            PendingIntent pi = PendingIntent.getBroadcast(ctx, reqCode, intent,
                     PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            if (android.os.Build.VERSION.SDK_INT
+                    >= android.os.Build.VERSION_CODES.S) {
                 if (am.canScheduleExactAlarms())
-                    am.setExactAndAllowWhileIdle(
-                            AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi);
+                    am.setAlarmClock(new AlarmManager.AlarmClockInfo(
+                            cal.getTimeInMillis(), pi), pi);
                 else
                     am.set(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi);
             } else {
-                am.setExactAndAllowWhileIdle(
-                        AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi);
+                am.setAlarmClock(new AlarmManager.AlarmClockInfo(
+                        cal.getTimeInMillis(), pi), pi);
             }
+            Log.d(TAG, "Alarm scheduled: " + item.title);
         } catch (Exception e) {
             Log.e(TAG, "scheduleAlarm: " + e.getMessage());
         }
     }
 
-    // ══════════════════════════════════════════════════════
-    //   STATUS BADGE
-    // ══════════════════════════════════════════════════════
-
+    // ── Status badge ──────────────────────────────────────
     private void updateStatusBadge() {
         if (tvOnlineStatus == null || !isAdded()) return;
         boolean online = GroqService.isOnline(requireContext());
         tvOnlineStatus.setText(online ? "● Enhanced" : "● Offline");
-        tvOnlineStatus.setTextColor(Color.parseColor(online ? "#20C997" : "#556688"));
+        tvOnlineStatus.setTextColor(
+                Color.parseColor(online ? "#20C997" : "#556688"));
         if (tvAISubtitle != null)
             tvAISubtitle.setText(online
                     ? "AI-powered · personalised to your schedule"
                     : "Offline mode · connect for smarter responses");
     }
 
-    // ══════════════════════════════════════════════════════
-    //   QUICK CHIPS
-    // ══════════════════════════════════════════════════════
-
+    // ── Quick chips ───────────────────────────────────────
     private void buildQuickChips() {
         String[][] actions = {
                 {"🎯", "What should I focus on right now?"},
-                {"🎤", "Add task for me by voice"},
+                {"➕", "Add task for me by voice"},
                 {"📊", "How am I doing this week?"},
                 {"💡", "Give me a productivity tip"},
                 {"⏰", "Best time to do deep work?"},
@@ -965,10 +884,7 @@ public class AIFragment extends Fragment {
         }
     }
 
-    // ══════════════════════════════════════════════════════
-    //   SUGGESTION CHIPS
-    // ══════════════════════════════════════════════════════
-
+    // ── Suggestion chips ──────────────────────────────────
     private void showSuggestionChips(List<String> chips) {
         if (!isAdded() || chips == null || chips.isEmpty()) return;
         layoutSuggestionChips.removeAllViews();
@@ -1004,7 +920,7 @@ public class AIFragment extends Fragment {
         if (q.contains("tip") || q.contains("produc"))
             return list("Best time to work?", "Build a habit?", "How am I doing?");
         if (q.contains("habit") || q.contains("routine"))
-            return list("Morning routine ideas", "How to stay consistent?", "Motivate me");
+            return list("Morning routine ideas", "Stay consistent?", "Motivate me");
         if (q.contains("motiv") || q.contains("inspir"))
             return list("What to do next?", "My progress this week", "Tip please");
         if (q.contains("focus") || q.contains("study") || q.contains("work"))
@@ -1014,10 +930,7 @@ public class AIFragment extends Fragment {
         return list("Tell me more", "Another tip", "How am I doing?");
     }
 
-    // ══════════════════════════════════════════════════════
-    //   HELPERS
-    // ══════════════════════════════════════════════════════
-
+    // ── Helpers ───────────────────────────────────────────
     private void addMessage(AIEngine.AIMessage msg) {
         if (!isAdded()) return;
         messages.add(msg);
@@ -1034,15 +947,16 @@ public class AIFragment extends Fragment {
             layoutTypingIndicator.setAlpha(0f);
             layoutTypingIndicator.setVisibility(View.VISIBLE);
             layoutTypingIndicator.animate().alpha(1f).setDuration(200).start();
+            rvChat.post(() -> {
+                if (isAdded()) rvChat.smoothScrollToPosition(messages.size() - 1);
+            });
         } else {
             layoutTypingIndicator.animate().alpha(0f).setDuration(150)
                     .withEndAction(() -> {
-                        if (isAdded()) layoutTypingIndicator.setVisibility(View.GONE);
+                        if (isAdded())
+                            layoutTypingIndicator.setVisibility(View.GONE);
                     }).start();
         }
-        if (show) rvChat.post(() -> {
-            if (isAdded()) rvChat.smoothScrollToPosition(messages.size() - 1);
-        });
     }
 
     private String getGreeting() {
@@ -1074,14 +988,12 @@ public class AIFragment extends Fragment {
         chip.setStrokeColor(Color.parseColor(stroke));
         chip.setClickable(true);
         chip.setFocusable(true);
-
         TextView tv = new TextView(getContext());
         tv.setText(text);
         tv.setTextColor(Color.parseColor("#8899CC"));
         tv.setTextSize(12f);
         tv.setPadding(dpToPx(14), dpToPx(8), dpToPx(14), dpToPx(8));
         chip.addView(tv);
-
         chip.setOnTouchListener((v, event) -> {
             if (event.getAction() == MotionEvent.ACTION_DOWN)
                 v.animate().scaleX(0.93f).scaleY(0.93f).setDuration(80).start();

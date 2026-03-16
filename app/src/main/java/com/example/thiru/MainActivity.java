@@ -1,241 +1,217 @@
 package com.example.thiru;
 
-import android.Manifest;
-import android.app.AlarmManager;
-import android.app.NotificationManager;
-import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
-import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
-import android.provider.Settings;
 import android.view.View;
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AlertDialog;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.app.AppCompatDelegate;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
-import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentTransaction;
-import com.google.android.material.bottomappbar.BottomAppBar;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.android.material.card.MaterialCardView;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final int NOTIFICATION_PERMISSION_CODE = 101;
+    private BottomNavigationView bottomNav;
+    private FloatingActionButton fab;
+    private MaterialCardView     cardBellIcon, cardSettingsIcon;
+    private TextView             tvNotifBadge;
+    private LinearLayout         layoutTopRightIcons;
 
-    private final ActivityResultLauncher<String> calendarPermLauncher =
-            registerForActivityResult(
-                    new ActivityResultContracts.RequestPermission(),
-                    granted -> {});
+    private int activeNavId = R.id.nav_home;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-
-        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
-
-        super.onCreate(savedInstanceState);
-
-        // ══════════════════════════════════════════════════
-        //   THE ONE LINE EVERY AI MISSED
-        //
-        //   On API 30+, without this line:
-        //   → ime.bottom is ALWAYS 0 in every inset listener
-        //   → adjustResize is silently ignored by the system
-        //   → WindowInsetsControllerCompat.show() fires but
-        //     nothing resizes because window never reports IME
-        //
-        //   This MUST be called BEFORE setContentView()
-        //   It tells the system: "I will handle all insets
-        //   manually — give me raw IME/systemBar values"
-        // ══════════════════════════════════════════════════
+        // ── MUST be before setContentView ─────────────────
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
-
+        super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        bottomNav           = findViewById(R.id.bottomNavigationView);
+        fab                 = findViewById(R.id.fab);
+        cardBellIcon        = findViewById(R.id.cardBellIcon);
+        cardSettingsIcon    = findViewById(R.id.cardSettingsIcon);
+        tvNotifBadge        = findViewById(R.id.tvNotifBadge);
+        layoutTopRightIcons = findViewById(R.id.layoutTopRightIcons);
+
+        setupWindowInsets();
+
         WeeklySummaryScheduler.schedule(this);
-
-        FestivalScheduler.schedule(this);
         GeofenceHelper.reRegisterAll(this);
+        FestivalScheduler.schedule(this);
 
-        checkAndRequestPermissions();
+        if (savedInstanceState == null) {
+            loadMainFragment(new HomeFragment(), R.id.nav_home);
+        }
 
-        View fragmentContainer = findViewById(R.id.fragment_container);
-        BottomAppBar bottomAppBar = findViewById(R.id.bottomAppBar);
-        int bottomBarHeight = (int) (80 * getResources().getDisplayMetrics().density);
+        bottomNav.setOnItemSelectedListener(item -> {
+            int id = item.getItemId();
+            if (id == activeNavId) return false;
+            Fragment fragment;
+            if      (id == R.id.nav_home)    fragment = new HomeFragment();
+            else if (id == R.id.nav_planner) fragment = new PlannerFragment();
+            else if (id == R.id.nav_stats)   fragment = new StatsFragment();
+            else if (id == R.id.nav_ai)      fragment = new AIFragment();
+            else return false;
+            loadMainFragment(fragment, id);
+            return true;
+        });
 
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
-            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            Insets ime        = insets.getInsets(WindowInsetsCompat.Type.ime());
+        fab.setOnClickListener(v -> {
+            AddTaskBottomSheet sheet = new AddTaskBottomSheet();
+            sheet.show(getSupportFragmentManager(), "AddTask");
+        });
 
-            if (ime.bottom > 0) {
-                // Keyboard OPEN — push fragment above keyboard
-                fragmentContainer.setPadding(
-                        systemBars.left,
-                        systemBars.top,
-                        systemBars.right,
-                        ime.bottom
-                );
-            } else {
-                // Keyboard CLOSED — restore space for BottomAppBar
-                fragmentContainer.setPadding(
-                        systemBars.left,
-                        systemBars.top,
-                        systemBars.right,
-                        bottomBarHeight + systemBars.bottom
-                );
+        if (cardBellIcon != null) {
+            cardBellIcon.setOnClickListener(v ->
+                    openOverlayFragment(new NotificationsFragment()));
+        }
+
+        if (cardSettingsIcon != null) {
+            cardSettingsIcon.setOnClickListener(v ->
+                    openOverlayFragment(new SettingsFragment()));
+        }
+
+        updateNotificationBadge();
+
+        String navTab = getIntent().getStringExtra("nav_tab");
+        if ("home".equals(navTab)) {
+            bottomNav.setSelectedItemId(R.id.nav_home);
+        }
+
+        // ── Back press — non-deprecated ───────────────────
+        getOnBackPressedDispatcher().addCallback(this,
+                new OnBackPressedCallback(true) {
+                    @Override
+                    public void handleOnBackPressed() {
+                        if (getSupportFragmentManager()
+                                .getBackStackEntryCount() > 0) {
+                            getSupportFragmentManager().popBackStack();
+                            setTopIconsVisible(activeNavId == R.id.nav_home);
+                            updateNotificationBadge();
+                        } else if (activeNavId != R.id.nav_home) {
+                            bottomNav.setSelectedItemId(R.id.nav_home);
+                        } else {
+                            setEnabled(false);
+                            getOnBackPressedDispatcher().onBackPressed();
+                        }
+                    }
+                });
+    }
+
+    private void loadMainFragment(Fragment fragment, int navId) {
+        activeNavId = navId;
+        getSupportFragmentManager().popBackStack(
+                "overlay",
+                androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE);
+        getSupportFragmentManager()
+                .beginTransaction()
+                .setCustomAnimations(R.anim.fragment_enter, R.anim.fragment_exit)
+                .replace(R.id.fragment_container, fragment)
+                .commit();
+        setTopIconsVisible(navId == R.id.nav_home);
+    }
+
+    private void openOverlayFragment(Fragment fragment) {
+        setTopIconsVisible(false);
+        getSupportFragmentManager()
+                .beginTransaction()
+                .setCustomAnimations(R.anim.fragment_enter, R.anim.fragment_exit)
+                .replace(R.id.fragment_container, fragment)
+                .addToBackStack("overlay")
+                .commit();
+    }
+
+    public void setTopIconsVisible(boolean visible) {
+        if (layoutTopRightIcons == null) return;
+        layoutTopRightIcons.setVisibility(visible ? View.VISIBLE : View.GONE);
+    }
+
+    public void updateNotificationBadge() {
+        if (tvNotifBadge == null) return;
+        int count = NotificationHelper.getUnreadCount(this);
+        tvNotifBadge.setVisibility(count > 0 ? View.VISIBLE : View.GONE);
+        tvNotifBadge.setText(count > 9 ? "9+" : String.valueOf(count));
+    }
+
+    // ══════════════════════════════════════════════════════
+    //   WINDOW INSETS — ROOT CAUSE FIX
+    //
+    //   THE BUG: Two separate listeners on root + fragContainer.
+    //   Root listener returned CONSUMED → Android stops all
+    //   inset propagation to children → fragContainer listener
+    //   NEVER fired → input bar always hidden behind nav bar.
+    //
+    //   THE FIX: ONE listener on root only.
+    //   Inside it we manually call setPadding on BOTH:
+    //     - root:          system bar bottom padding
+    //     - fragContainer: keyboard-aware bottom padding
+    //
+    //   This guarantees both always update together on every
+    //   single inset change (keyboard open/close/rotate).
+    //
+    //   Manifest stateHidden|adjustResize is required —
+    //   it tells Android to report ime() insets to our
+    //   listener. Without it imeBottom is always 0.
+    // ══════════════════════════════════════════════════════
+    private void setupWindowInsets() {
+        View root          = findViewById(R.id.main);
+        View fragContainer = findViewById(R.id.fragment_container);
+        View topIcons      = findViewById(R.id.layoutTopRightIcons);
+
+        final int bottomBarH = Math.round(
+                80 * getResources().getDisplayMetrics().density);
+
+        ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
+            int sysTop    = insets.getInsets(
+                    WindowInsetsCompat.Type.systemBars()).top;
+            int sysBottom = insets.getInsets(
+                    WindowInsetsCompat.Type.systemBars()).bottom;
+            int imeBottom = insets.getInsets(
+                    WindowInsetsCompat.Type.ime()).bottom;
+
+            // ── 1. Top-right icons below status bar ───────────
+            if (topIcons != null) {
+                android.view.ViewGroup.MarginLayoutParams lp =
+                        (android.view.ViewGroup.MarginLayoutParams)
+                                topIcons.getLayoutParams();
+                lp.topMargin = sysTop + Math.round(
+                        8 * getResources().getDisplayMetrics().density);
+                topIcons.setLayoutParams(lp);
             }
 
-            // BottomAppBar floats above gesture nav bar
-            bottomAppBar.setPadding(0, 0, 0, systemBars.bottom);
+            // ── 2. ROOT gets ONLY sysBottom — never imeBottom ─
+            // fragContainer handles the keyboard offset below.
+            // Adding imeBottom here AND on fragContainer was
+            // causing DOUBLE padding — input bar pushed off screen.
+            v.setPadding(0, 0, 0, sysBottom);
+
+            // ── 3. fragContainer — keyboard-aware padding ─────
+            // This is the ONLY place imeBottom is applied.
+            // No double-stacking with root.
+            if (fragContainer != null) {
+                if (imeBottom > 0) {
+                    // Keyboard open → lift content above keyboard
+                    fragContainer.setPadding(0, 0, 0, imeBottom);
+                } else {
+                    // Keyboard closed → space for bottom nav bar
+                    fragContainer.setPadding(0, 0, 0,
+                            bottomBarH + sysBottom);
+                }
+            }
 
             return WindowInsetsCompat.CONSUMED;
         });
-
-        if (savedInstanceState == null) {
-            loadFragment(new HomeFragment(), false);
-        }
-
-        BottomNavigationView bottomNav = findViewById(R.id.bottomNavigationView);
-        bottomNav.setOnItemSelectedListener(item -> {
-            int id = item.getItemId();
-            if (id == R.id.nav_home)     return loadFragment(new HomeFragment(), true);
-            if (id == R.id.nav_planner)  return loadFragment(new PlannerFragment(), true);
-            if (id == R.id.nav_stats)    return loadFragment(new StatsFragment(), true);
-            if (id == R.id.nav_ai)       return loadFragment(new AIFragment(), true);
-            if (id == R.id.nav_settings) return loadFragment(new SettingsFragment(), true);
-            return false;
-        });
-
-        findViewById(R.id.fab).setOnClickListener(v -> {
-            AddTaskBottomSheet bottomSheet = new AddTaskBottomSheet();
-            bottomSheet.show(getSupportFragmentManager(), "AddTaskBottomSheet");
-        });
-
-        requestCalendarPermissionIfNeeded();
-    }
-
-    private void requestCalendarPermissionIfNeeded() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CALENDAR)
-                != PackageManager.PERMISSION_GRANTED) {
-            SharedPreferences prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE);
-            boolean askedBefore = prefs.getBoolean("calendar_perm_asked", false);
-            if (!askedBefore) {
-                prefs.edit().putBoolean("calendar_perm_asked", true).apply();
-                findViewById(R.id.main).postDelayed(
-                        () -> calendarPermLauncher.launch(
-                                Manifest.permission.READ_CALENDAR),
-                        1500);
-            }
-        }
-    }
-
-    private boolean loadFragment(Fragment fragment, boolean animate) {
-        FragmentTransaction transaction =
-                getSupportFragmentManager().beginTransaction();
-        if (animate) {
-            transaction.setCustomAnimations(
-                    R.anim.fragment_enter,
-                    R.anim.fragment_exit);
-        }
-        transaction.replace(R.id.fragment_container, fragment).commit();
-        return true;
-    }
-
-    private void checkAndRequestPermissions() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this,
-                    Manifest.permission.POST_NOTIFICATIONS)
-                    != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this,
-                        new String[]{Manifest.permission.POST_NOTIFICATIONS},
-                        NOTIFICATION_PERMISSION_CODE);
-                return;
-            }
-        }
-        checkSpecialPermissions();
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode,
-                                           @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == NOTIFICATION_PERMISSION_CODE) checkSpecialPermissions();
-    }
-
-    private void checkSpecialPermissions() {
-        SharedPreferences prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE);
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-            if (am != null && !am.canScheduleExactAlarms()) {
-                showEducationalDialog("Exact Alarm Required",
-                        "To ensure your alarm rings exactly on time, "
-                                + "please allow 'Alarms & Reminders'.",
-                        new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
-                                Uri.parse("package:" + getPackageName())));
-                return;
-            }
-        }
-
-        if (Build.VERSION.SDK_INT >= 34) {
-            NotificationManager nm = getSystemService(NotificationManager.class);
-            if (nm != null && !nm.canUseFullScreenIntent()) {
-                showEducationalDialog("Full Screen Alarm Required",
-                        "Android 14 requires you to allow full-screen alarms.",
-                        new Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT,
-                                Uri.parse("package:" + getPackageName())));
-                return;
-            }
-        }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            if (!Settings.canDrawOverlays(this)) {
-                showEducationalDialog("Display Over Apps",
-                        "To show the alarm screen over other apps, "
-                                + "please allow 'Display over other apps'.",
-                        new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                Uri.parse("package:" + getPackageName())));
-                return;
-            }
-        }
-
-        String manufacturer = Build.MANUFACTURER.toLowerCase();
-        boolean isProblemDevice = manufacturer.contains("vivo")
-                || manufacturer.contains("xiaomi")
-                || manufacturer.contains("oppo")
-                || manufacturer.contains("realme")
-                || manufacturer.contains("samsung")
-                || manufacturer.contains("huawei");
-        boolean oemSetupDone = prefs.getBoolean("oem_setup_done", false);
-
-        if (isProblemDevice && !oemSetupDone) {
-            startActivity(new Intent(this, OemPermissionActivity.class));
-            finish();
-            return;
-        }
-
-        prefs.edit().putBoolean("isFirstLaunch", false).apply();
-    }
-
-    private void showEducationalDialog(String title, String message, Intent intent) {
-        new AlertDialog.Builder(this)
-                .setTitle(title)
-                .setMessage(message)
-                .setPositiveButton("Go to Settings",
-                        (dialog, which) -> startActivity(intent))
-                .setNegativeButton("Not Now", null)
-                .setCancelable(false)
-                .show();
+    protected void onResume() {
+        super.onResume();
+        updateNotificationBadge();
     }
 }

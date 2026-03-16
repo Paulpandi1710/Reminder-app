@@ -1,5 +1,6 @@
 package com.example.thiru;
 
+import android.animation.ObjectAnimator;
 import android.animation.ValueAnimator;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -14,7 +15,9 @@ import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.View;
 import android.view.ViewTreeObserver;
+import android.view.animation.AccelerateDecelerateInterpolator;
 import android.view.animation.DecelerateInterpolator;
+import android.view.animation.LinearInterpolator;
 import android.view.animation.OvershootInterpolator;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -54,42 +57,35 @@ public class HomeFragment extends Fragment {
     private ActionAdapter adapter;
     private String currentTab = "routines";
 
-    // ── Views ─────────────────────────────────────────────
-    private TextView tvTabRoutines, tvTabTasks, tvTabPending, tvTabGeo;
-    private View lineTabRoutines, lineTabTasks, lineTabPending;
+    private TextView  tvTabRoutines, tvTabTasks, tvTabPending, tvTabGeo;
+    private View      lineTabRoutines, lineTabTasks, lineTabPending;
     private ProgressBar progressBar;
-    private TextView tvProgressPercent, tvProgressSubtitle, tvMotivation;
-    private TextView tvNextTaskTimer;
-    private TextView tvGreetingTime, tvGreetingName, tvDailyQuote;
+    private TextView  tvProgressPercent, tvProgressSubtitle, tvMotivation;
+    private TextView  tvNextTaskTimer;
+    private TextView  tvGreetingTime, tvGreetingName, tvDailyQuote;
     private ImageView ivProfilePhoto;
     private KonfettiView konfettiView;
-    private EditText etSearch;
-    private ImageView ivClearSearch;
-    private MaterialCardView cardRolloverBanner;
-    private TextView tvRolloverTitle, tvRolloverSubtitle;
+    private EditText  etSearch;
+    private View ivClearSearch; // Changed to View to match MaterialCardView in new XML
+    private View cardRolloverBanner; // Changed to View to handle generic visibility
+    private TextView  tvRolloverTitle, tvRolloverSubtitle;
     private ImageView ivDismissRollover;
-    private MaterialCardView cardGreeting, cardProgress;
-    private MaterialCardView cardXP;
-    private TextView tvXPBadge, tvXPTitle, tvXPLevelLabel;
-    private TextView tvXPNumbers, tvStreakValue, tvTotalXP;
-    private View viewXPFill;
-
-    // ── AI Priority sort ──────────────────────────────────
+    private MaterialCardView cardGreeting, cardProgress, cardXP;
+    private TextView  tvXPBadge, tvXPTitle, tvXPLevelLabel;
+    private TextView  tvXPNumbers, tvStreakValue, tvTotalXP;
+    private View      viewXPFill, viewXPShimmer;
     private MaterialCardView cardAIPriority;
-    private TextView tvAIPriorityLabel;
-    private boolean aiSortActive = false;
+    private TextView  tvAIPriorityLabel;
+    private boolean   aiSortActive = false;
     private List<ActionItem> lastTabItems = new ArrayList<>();
-
-    // ── Geofence add button ───────────────────────────────
     private MaterialCardView cardAddGeofence;
 
-    // ── State ─────────────────────────────────────────────
     private List<ActionItem> allAppItems = new ArrayList<>();
-    private Handler timerHandler = new Handler(Looper.getMainLooper());
+    private Handler  timerHandler  = new Handler(Looper.getMainLooper());
     private Runnable timerRunnable;
-    private int currentAnimatedProgress = 0;
-    private int lastCompletedCount = -1;
-    private int lastTotalCount = -1;
+    private int  currentAnimatedProgress = 0;
+    private int  lastCompletedCount = -1;
+    private int  lastTotalCount     = -1;
     private Observer<List<ActionItem>> tabObserver = null;
 
     private static final String[] QUOTES = {
@@ -106,10 +102,10 @@ public class HomeFragment extends Fragment {
     public HomeFragment() { super(R.layout.fragment_home); }
 
     @Override
-    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+    public void onViewCreated(@NonNull View view,
+                              @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        // ── Bind views ────────────────────────────────────
         tvTabRoutines      = view.findViewById(R.id.tvTabRoutines);
         tvTabTasks         = view.findViewById(R.id.tvTabTasks);
         tvTabPending       = view.findViewById(R.id.tvTabPending);
@@ -143,6 +139,7 @@ public class HomeFragment extends Fragment {
         tvStreakValue      = view.findViewById(R.id.tvStreakValue);
         tvTotalXP          = view.findViewById(R.id.tvTotalXP);
         viewXPFill         = view.findViewById(R.id.viewXPFill);
+        viewXPShimmer      = view.findViewById(R.id.viewXPShimmer);
         cardAIPriority     = view.findViewById(R.id.cardAIPriority);
         tvAIPriorityLabel  = view.findViewById(R.id.tvAIPriorityLabel);
         cardAddGeofence    = view.findViewById(R.id.cardAddGeofence);
@@ -163,32 +160,37 @@ public class HomeFragment extends Fragment {
         adapter.setOnItemClickListener(new ActionAdapter.OnItemClickListener() {
             @Override
             public void onCheckClicked(ActionItem item) {
-                // Geofence items cannot be "completed" like tasks — skip XP
                 if ("geofence".equals(item.type)) return;
                 item.isCompleted = !item.isCompleted;
                 if (item.isCompleted) {
                     item.isPending = false;
                     launchConfetti();
-                    XPManager.XPResult result = item.type.equals("routines")
-                            ? XPManager.onRoutineCompleted(requireContext(), item.id)
-                            : XPManager.onTaskCompleted(requireContext(), item.id);
+                    XPManager.XPResult result =
+                            "routines".equals(item.type)
+                                    ? XPManager.onRoutineCompleted(
+                                    requireContext(), item.id)
+                                    : XPManager.onTaskCompleted(
+                                    requireContext(), item.id);
                     if (result != null) handleXPResult(result);
                 }
                 Executors.newSingleThreadExecutor().execute(() ->
-                        FocusDatabase.getInstance(getContext()).actionDao().update(item));
+                        FocusDatabase.getInstance(getContext())
+                                .actionDao().update(item));
             }
 
             @Override
             public void onDeleteClicked(ActionItem item) {
                 if ("geofence".equals(item.type)) {
-                    // Remove geofence from Android system then delete from DB
-                    GeofenceHelper.removeGeofence(requireContext(), String.valueOf(item.id));
+                    GeofenceHelper.removeGeofence(
+                            requireContext(), String.valueOf(item.id));
                     Executors.newSingleThreadExecutor().execute(() ->
-                            FocusDatabase.getInstance(getContext()).actionDao().delete(item));
+                            FocusDatabase.getInstance(getContext())
+                                    .actionDao().delete(item));
                 } else {
-                    EditTaskBottomSheet editSheet = new EditTaskBottomSheet();
-                    editSheet.setActionItem(item);
-                    editSheet.show(getParentFragmentManager(), "EditTaskBottomSheet");
+                    EditTaskBottomSheet sheet = new EditTaskBottomSheet();
+                    sheet.setActionItem(item);
+                    sheet.show(getParentFragmentManager(),
+                            "EditTaskBottomSheet");
                 }
             }
         });
@@ -196,7 +198,8 @@ public class HomeFragment extends Fragment {
         tvTabRoutines.setOnClickListener(v -> switchTab("routines"));
         tvTabTasks.setOnClickListener(v    -> switchTab("tasks"));
         tvTabPending.setOnClickListener(v  -> switchTab("pending"));
-        tvTabGeo.setOnClickListener(v      -> switchTab("geofence"));
+        if (tvTabGeo != null)
+            tvTabGeo.setOnClickListener(v  -> switchTab("geofence"));
 
         loadDataForCurrentTab();
         observeProgressAndTimer();
@@ -204,7 +207,7 @@ public class HomeFragment extends Fragment {
     }
 
     // ══════════════════════════════════════════════════════
-    //   GEOFENCE BUTTON SETUP
+    //   GEOFENCE
     // ══════════════════════════════════════════════════════
 
     private void setupGeofenceButton() {
@@ -217,12 +220,12 @@ public class HomeFragment extends Fragment {
 
     private void updateGeofenceButtonVisibility() {
         if (cardAddGeofence == null) return;
-        boolean show = "geofence".equals(currentTab);
-        cardAddGeofence.setVisibility(show ? View.VISIBLE : View.GONE);
+        cardAddGeofence.setVisibility(
+                "geofence".equals(currentTab) ? View.VISIBLE : View.GONE);
     }
 
     // ══════════════════════════════════════════════════════
-    //   AI PRIORITY SORT
+    //   AI PRIORITY
     // ══════════════════════════════════════════════════════
 
     private void setupAIPriorityButton() {
@@ -237,21 +240,24 @@ public class HomeFragment extends Fragment {
         if (aiSortActive) {
             List<ActionItem> sorted = new ArrayList<>(lastTabItems);
             sorted.sort((a, b) ->
-                    Integer.compare(calcPriorityScore(b), calcPriorityScore(a)));
+                    Integer.compare(calcPriorityScore(b),
+                            calcPriorityScore(a)));
             adapter.setItems(sorted);
-            if (cardAIPriority != null) {
-                cardAIPriority.animate().scaleX(1.05f).scaleY(1.05f).setDuration(100)
+            if (cardAIPriority != null)
+                cardAIPriority.animate()
+                        .scaleX(1.05f).scaleY(1.05f).setDuration(100)
                         .withEndAction(() -> {
                             if (isAdded())
-                                cardAIPriority.animate().scaleX(1f).scaleY(1f)
+                                cardAIPriority.animate()
+                                        .scaleX(1f).scaleY(1f)
                                         .setDuration(150)
-                                        .setInterpolator(new OvershootInterpolator(2f))
+                                        .setInterpolator(
+                                                new OvershootInterpolator(2f))
                                         .start();
                         }).start();
-            }
             try {
                 Snackbar.make(requireView(),
-                        "🧠 AI sorted by urgency — 🔴 urgent first",
+                        "🧠 AI sorted — 🔴 urgent first",
                         Snackbar.LENGTH_SHORT).show();
             } catch (Exception ignored) {}
         } else {
@@ -262,12 +268,14 @@ public class HomeFragment extends Fragment {
     private void updateAIPriorityButtonUI() {
         if (cardAIPriority == null || tvAIPriorityLabel == null) return;
         if (aiSortActive) {
-            cardAIPriority.setCardBackgroundColor(Color.parseColor("#4263EB"));
+            cardAIPriority.setCardBackgroundColor(
+                    Color.parseColor("#4263EB"));
             cardAIPriority.setStrokeColor(Color.parseColor("#7B9BFF"));
             tvAIPriorityLabel.setTextColor(Color.WHITE);
             tvAIPriorityLabel.setText("🧠 AI Sorted");
         } else {
-            cardAIPriority.setCardBackgroundColor(Color.parseColor("#0D0D22"));
+            cardAIPriority.setCardBackgroundColor(
+                    Color.parseColor("#0D0D22"));
             cardAIPriority.setStrokeColor(Color.parseColor("#2A3A7E"));
             tvAIPriorityLabel.setTextColor(Color.parseColor("#8899CC"));
             tvAIPriorityLabel.setText("🧠 AI Priority");
@@ -276,7 +284,7 @@ public class HomeFragment extends Fragment {
 
     private int calcPriorityScore(ActionItem item) {
         if (item.isCompleted) return -100;
-        if ("geofence".equals(item.type)) return 5; // geofence items always mid-priority
+        if ("geofence".equals(item.type)) return 5;
         int score = 0;
         long now      = System.currentTimeMillis();
         long taskTime = getTaskTimeMillis(item);
@@ -310,27 +318,31 @@ public class HomeFragment extends Fragment {
             cal.set(Calendar.SECOND, 0);
             cal.set(Calendar.MILLISECOND, 0);
         } else {
-            cal.set(item.year, item.month, item.day, item.hour, item.minute, 0);
+            cal.set(item.year, item.month, item.day,
+                    item.hour, item.minute, 0);
             cal.set(Calendar.MILLISECOND, 0);
         }
         return (cal.getTimeInMillis() - now) / 60000L;
     }
 
-    // ─────────────────────────────────────────────────────
-    //   LOAD DATA FOR CURRENT TAB
-    // ─────────────────────────────────────────────────────
+    // ══════════════════════════════════════════════════════
+    //   LOAD DATA
+    // ══════════════════════════════════════════════════════
 
     private void loadDataForCurrentTab() {
         if (!isAdded()) return;
-
         FocusDatabase.getInstance(getContext()).actionDao()
-                .getItemsByType("routines").removeObservers(getViewLifecycleOwner());
+                .getItemsByType("routines")
+                .removeObservers(getViewLifecycleOwner());
         FocusDatabase.getInstance(getContext()).actionDao()
-                .getItemsByType("tasks").removeObservers(getViewLifecycleOwner());
+                .getItemsByType("tasks")
+                .removeObservers(getViewLifecycleOwner());
         FocusDatabase.getInstance(getContext()).actionDao()
-                .getPendingItems().removeObservers(getViewLifecycleOwner());
+                .getPendingItems()
+                .removeObservers(getViewLifecycleOwner());
         FocusDatabase.getInstance(getContext()).actionDao()
-                .getItemsByType("geofence").removeObservers(getViewLifecycleOwner());
+                .getItemsByType("geofence")
+                .removeObservers(getViewLifecycleOwner());
 
         tabObserver = items -> {
             lastTabItems = items != null ? items : new ArrayList<>();
@@ -338,7 +350,8 @@ public class HomeFragment extends Fragment {
                 if (aiSortActive) {
                     List<ActionItem> sorted = new ArrayList<>(lastTabItems);
                     sorted.sort((a, b) ->
-                            Integer.compare(calcPriorityScore(b), calcPriorityScore(a)));
+                            Integer.compare(calcPriorityScore(b),
+                                    calcPriorityScore(a)));
                     adapter.setItems(sorted);
                 } else {
                     adapter.setItems(lastTabItems);
@@ -365,15 +378,16 @@ public class HomeFragment extends Fragment {
         }
     }
 
-    // ─────────────────────────────────────────────────────
+    // ══════════════════════════════════════════════════════
     //   OBSERVE PROGRESS AND TIMER
-    // ─────────────────────────────────────────────────────
+    // ══════════════════════════════════════════════════════
 
     private void observeProgressAndTimer() {
         FocusDatabase.getInstance(getContext()).actionDao()
                 .getAllItems()
                 .observe(getViewLifecycleOwner(), allItems -> {
-                    this.allAppItems = allItems != null ? allItems : new ArrayList<>();
+                    this.allAppItems =
+                            allItems != null ? allItems : new ArrayList<>();
                     if (allItems == null || allItems.isEmpty()) {
                         updateProgressUI(0, 0);
                         return;
@@ -389,65 +403,141 @@ public class HomeFragment extends Fragment {
                     boolean needsRefresh = false;
 
                     for (ActionItem item : allItems) {
-                        if (item.type.equals("history_routine")
-                                || item.type.equals("geofence")) continue;
+                        if ("history_routine".equals(item.type)
+                                || "geofence".equals(item.type)) continue;
                         total++;
                         if (item.isCompleted) {
                             completed++;
-                            if (item.type.equals("routines")
+                            if ("routines".equals(item.type)
                                     && item.repeatMode != null
-                                    && !item.repeatMode.equals("None")) {
+                                    && !"None".equals(item.repeatMode)) {
                                 boolean dateChanged =
-                                        item.year != curYear
+                                        item.year  != curYear
                                                 || item.month != curMonth
-                                                || item.day != curDay;
+                                                || item.day   != curDay;
                                 boolean shouldReset = false;
-                                if (item.repeatMode.equals("Daily") && dateChanged) {
+                                if ("Daily".equals(item.repeatMode)
+                                        && dateChanged) {
                                     shouldReset = true;
-                                } else if (item.repeatMode.startsWith("Weekly") && dateChanged) {
-                                    String dayPart = item.repeatMode.contains(":")
-                                            ? item.repeatMode.split(": ")[1].trim() : "";
-                                    if (curDayOfWeek == getDayOfWeekInt(dayPart))
+                                } else if (item.repeatMode.startsWith("Weekly")
+                                        && dateChanged) {
+                                    String dayPart =
+                                            item.repeatMode.contains(":")
+                                                    ? item.repeatMode
+                                                    .split(": ")[1].trim()
+                                                    : "";
+                                    if (curDayOfWeek
+                                            == getDayOfWeekInt(dayPart))
                                         shouldReset = true;
                                 }
                                 if (shouldReset) {
                                     needsRefresh = true;
                                     ActionItem hist = new ActionItem(
-                                            "history_routine", item.title, item.timeString,
-                                            item.hour, item.minute, item.year, item.month,
-                                            item.day, item.duration, item.description,
+                                            "history_routine",
+                                            item.title, item.timeString,
+                                            item.hour, item.minute,
+                                            item.year, item.month, item.day,
+                                            item.duration, item.description,
                                             item.repeatMode);
                                     hist.isCompleted = true;
-                                    ex.execute(() -> FocusDatabase.getInstance(getContext())
+                                    ex.execute(() -> FocusDatabase
+                                            .getInstance(getContext())
                                             .actionDao().insert(hist));
                                     item.isCompleted = false;
+                                    item.isPending   = false;
                                     item.year  = curYear;
                                     item.month = curMonth;
                                     item.day   = curDay;
-                                    ex.execute(() -> FocusDatabase.getInstance(getContext())
+                                    ex.execute(() -> FocusDatabase
+                                            .getInstance(getContext())
                                             .actionDao().update(item));
                                 }
                             }
                         } else if (!item.isPending) {
                             long taskTime = getTaskTimeMillis(item);
-                            if (taskTime < System.currentTimeMillis() - 60_000L) {
+                            if (taskTime < System.currentTimeMillis()
+                                    - 60_000L) {
                                 item.isPending = true;
-                                ex.execute(() -> FocusDatabase.getInstance(getContext())
+                                ex.execute(() -> FocusDatabase
+                                        .getInstance(getContext())
                                         .actionDao().update(item));
                                 needsRefresh = true;
                             }
                         }
                     }
-
                     updateProgressUI(completed, total);
                     startLiveTimer();
                     if (needsRefresh) loadDataForCurrentTab();
                 });
     }
 
-    // ═══════════════════════════════════════════════════════
-    //   XP SYSTEM — unchanged
-    // ═══════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
+    //   AUTO-ROLLOVER
+    // ══════════════════════════════════════════════════════
+
+    private void runAutoRolloverIfEnabled() {
+        android.content.SharedPreferences prefs = requireContext()
+                .getSharedPreferences("AppPrefs",
+                        android.content.Context.MODE_PRIVATE);
+        if (!prefs.getBoolean("auto_rollover", true)) return;
+        String today = getTodayDateString();
+        if (today.equals(prefs.getString("last_rollover_date", "")))
+            return;
+
+        Executors.newSingleThreadExecutor().execute(() -> {
+            try {
+                Calendar todayCal = Calendar.getInstance();
+                todayCal.set(Calendar.HOUR_OF_DAY, 0);
+                todayCal.set(Calendar.MINUTE, 0);
+                todayCal.set(Calendar.SECOND, 0);
+                todayCal.set(Calendar.MILLISECOND, 0);
+                int tYear  = todayCal.get(Calendar.YEAR);
+                int tMonth = todayCal.get(Calendar.MONTH);
+                int tDay   = todayCal.get(Calendar.DAY_OF_MONTH);
+                List<ActionItem> all = FocusDatabase
+                        .getInstance(getContext())
+                        .actionDao().getAllItemsSync();
+                int rolled = 0;
+                for (ActionItem item : all) {
+                    if (!"tasks".equals(item.type)) continue;
+                    if (item.isCompleted) continue;
+                    Calendar taskCal = Calendar.getInstance();
+                    taskCal.set(item.year, item.month, item.day, 0, 0, 0);
+                    taskCal.set(Calendar.MILLISECOND, 0);
+                    if (taskCal.before(todayCal)) {
+                        item.year       = tYear;
+                        item.month      = tMonth;
+                        item.day        = tDay;
+                        item.isPending  = false;
+                        item.timeString = formatTimeString(
+                                item.year, item.month, item.day,
+                                item.hour, item.minute);
+                        FocusDatabase.getInstance(getContext())
+                                .actionDao().update(item);
+                        rolled++;
+                    }
+                }
+                prefs.edit()
+                        .putString("last_rollover_date", today)
+                        .apply();
+                if (rolled > 0) {
+                    final int cnt = rolled;
+                    new Handler(Looper.getMainLooper()).post(() -> {
+                        if (isAdded() && cardRolloverBanner != null)
+                            showRolloverBanner(cnt);
+                    });
+                }
+            } catch (Exception e) {
+                prefs.edit()
+                        .putString("last_rollover_date", today)
+                        .apply();
+            }
+        });
+    }
+
+    // ══════════════════════════════════════════════════════
+    //   XP SYSTEM
+    // ══════════════════════════════════════════════════════
 
     private void handleXPResult(XPManager.XPResult result) {
         if (result == null || !isAdded()) return;
@@ -455,65 +545,104 @@ public class HomeFragment extends Fragment {
         if (result.leveledUp) {
             new Handler(Looper.getMainLooper()).postDelayed(() -> {
                 if (isAdded())
-                    LevelUpDialog.show(requireContext(), result.newLevel,
-                            result.newTitle, result.newBadge, result.xpEarned);
+                    LevelUpDialog.show(requireContext(),
+                            result.newLevel, result.newTitle,
+                            result.newBadge, result.xpEarned);
             }, 600);
         }
         refreshXPCard();
+        try {
+            NotificationHelper.add(requireContext(),
+                    "⚡ +" + result.xpEarned + " XP earned!",
+                    result.leveledUp
+                            ? "Level up! You're now " + result.newTitle
+                            : "Keep completing flows!",
+                    "xp");
+            if (getActivity() instanceof MainActivity)
+                ((MainActivity) getActivity()).updateNotificationBadge();
+        } catch (Exception ignored) {}
     }
 
     private void refreshXPCard() {
         if (!isAdded() || tvXPTitle == null) return;
-        int level    = XPManager.getLevel(requireContext());
-        String title = XPManager.getTitle(requireContext());
-        String badge = XPManager.getBadge(requireContext());
-        int inLevel  = XPManager.getXPInCurrentLevel(requireContext());
-        int needed   = XPManager.getXPNeededForLevel(requireContext());
-        int streak   = XPManager.getStreak(requireContext());
-        int totalXP  = XPManager.getTotalXP(requireContext());
+        int level      = XPManager.getLevel(requireContext());
+        String title   = XPManager.getTitle(requireContext());
+        int inLevel    = XPManager.getXPInCurrentLevel(requireContext());
+        int needed     = XPManager.getXPNeededForLevel(requireContext());
+        int streak     = XPManager.getStreak(requireContext());
+        int totalXP    = XPManager.getTotalXP(requireContext());
         float progress = XPManager.getLevelProgress(requireContext());
-        tvXPBadge.setText(badge);
-        tvXPTitle.setText(title);
-        tvXPLevelLabel.setText("Level " + level);
-        tvXPNumbers.setText(inLevel + " / " + needed + " XP");
-        tvStreakValue.setText("🔥 " + streak + " day streak");
-        tvTotalXP.setText(totalXP + " XP total");
+
+        if (tvXPBadge != null)       tvXPBadge.setText("LVL");
+        if (tvXPLevelLabel != null)  tvXPLevelLabel.setText(String.valueOf(level));
+        if (tvXPTitle != null)       tvXPTitle.setText(title);
+        if (tvXPNumbers != null)
+            tvXPNumbers.setText(inLevel + " / " + needed + " XP");
+        if (tvStreakValue != null)
+            tvStreakValue.setText("🔥 " + streak); // Changed based on new UI format
+        if (tvTotalXP != null)
+            tvTotalXP.setText(totalXP + " XP total");
+
         animateXPBar(progress);
-        if (cardXP != null) {
+
+        if (cardXP != null)
             cardXP.animate().scaleX(1.02f).scaleY(1.02f).setDuration(100)
-                    .withEndAction(() -> cardXP.animate()
-                            .scaleX(1f).scaleY(1f).setDuration(180)
-                            .setInterpolator(new OvershootInterpolator(2f)).start())
-                    .start();
-        }
+                    .withEndAction(() -> {
+                        if (isAdded()) cardXP.animate()
+                                .scaleX(1f).scaleY(1f).setDuration(180)
+                                .setInterpolator(new OvershootInterpolator(2f))
+                                .start();
+                    }).start();
     }
 
     private void animateXPBar(float targetProgress) {
         if (viewXPFill == null) return;
         View parent = (View) viewXPFill.getParent();
         if (parent == null) return;
+
         Runnable doAnimate = () -> {
             int parentWidth = parent.getWidth();
             if (parentWidth == 0) return;
-            int targetWidth = (int) (parentWidth * Math.min(targetProgress, 1f));
-            ValueAnimator anim = ValueAnimator.ofInt(0, targetWidth);
-            anim.setDuration(900);
-            anim.setInterpolator(new DecelerateInterpolator(1.5f));
-            anim.addUpdateListener(animation -> {
-                int val = (int) animation.getAnimatedValue();
-                android.view.ViewGroup.LayoutParams params = viewXPFill.getLayoutParams();
-                params.width = val;
-                viewXPFill.setLayoutParams(params);
+            int targetWidth =
+                    (int)(parentWidth * Math.min(targetProgress, 1f));
+
+            ValueAnimator fillAnim = ValueAnimator.ofInt(0, targetWidth);
+            fillAnim.setDuration(900);
+            fillAnim.setInterpolator(new DecelerateInterpolator(1.5f));
+            fillAnim.addUpdateListener(a -> {
+                if (!isAdded()) return;
+                int val = (int) a.getAnimatedValue();
+                android.view.ViewGroup.LayoutParams lp =
+                        viewXPFill.getLayoutParams();
+                lp.width = val;
+                viewXPFill.setLayoutParams(lp);
             });
-            anim.start();
+            fillAnim.start();
+
+            if (viewXPShimmer != null && targetWidth > 0) {
+                viewXPShimmer.setVisibility(View.VISIBLE);
+                ValueAnimator shimAnim =
+                        ValueAnimator.ofFloat(-50f, targetWidth + 50f);
+                shimAnim.setDuration(900);
+                shimAnim.setStartDelay(700);
+                shimAnim.setInterpolator(new LinearInterpolator());
+                shimAnim.addUpdateListener(a -> {
+                    if (isAdded() && viewXPShimmer != null)
+                        viewXPShimmer.setTranslationX(
+                                (float) a.getAnimatedValue());
+                });
+                shimAnim.start();
+            }
         };
+
         if (parent.getWidth() > 0) {
             doAnimate.run();
         } else {
             parent.getViewTreeObserver().addOnGlobalLayoutListener(
                     new ViewTreeObserver.OnGlobalLayoutListener() {
                         @Override public void onGlobalLayout() {
-                            parent.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+                            parent.getViewTreeObserver()
+                                    .removeOnGlobalLayoutListener(this);
                             doAnimate.run();
                         }
                     });
@@ -524,7 +653,8 @@ public class HomeFragment extends Fragment {
         if (!isAdded()) return;
         try {
             Snackbar sb = Snackbar.make(requireView(),
-                    "⚡ +" + xpEarned + " XP earned!", Snackbar.LENGTH_SHORT);
+                    "⚡ +" + xpEarned + " XP earned!",
+                    Snackbar.LENGTH_SHORT);
             sb.setBackgroundTint(Color.parseColor("#1A4263EB"));
             sb.setTextColor(Color.parseColor("#7B9BFF"));
             sb.show();
@@ -552,124 +682,147 @@ public class HomeFragment extends Fragment {
         }
     }
 
-    // ═══════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
     //   ENTRANCE ANIMATIONS
-    // ═══════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
 
     private void playEntranceAnimations() {
         if (!isAdded()) return;
-        animateCardIn(cardGreeting,  60,  80f, 480);
-        animateCardIn(cardXP,       160,  60f, 450);
-        animateCardIn(cardProgress, 240,  60f, 450);
-        if (ivProfilePhoto != null) {
-            ivProfilePhoto.setScaleX(0f);
-            ivProfilePhoto.setScaleY(0f);
-            ivProfilePhoto.animate().scaleX(1f).scaleY(1f)
-                    .setDuration(550).setStartDelay(250)
-                    .setInterpolator(new OvershootInterpolator(2f)).start();
+
+        // 1. Unified Hero card slides up from below
+        if (cardGreeting != null) {
+            cardGreeting.setAlpha(0f);
+            cardGreeting.setTranslationY(80f);
+            cardGreeting.animate()
+                    .alpha(1f).translationY(0f)
+                    .setDuration(520).setStartDelay(60)
+                    .setInterpolator(new DecelerateInterpolator(2.2f))
+                    .start();
+        }
+
+        // 2. Progress ring animates from 0 after card appears
+        if (progressBar != null) {
+            progressBar.setProgress(0);
         }
     }
 
-    private void animateCardIn(View v, int delay, float fromY, int duration) {
-        if (v == null) return;
-        v.setAlpha(0f);
-        v.setTranslationY(fromY);
-        v.animate().alpha(1f).translationY(0f).setDuration(duration)
-                .setStartDelay(delay)
-                .setInterpolator(new DecelerateInterpolator(2.2f)).start();
-    }
-
-    // ═══════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
     //   PROGRESS UI
-    // ═══════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
 
     private void updateProgressUI(int completed, int total) {
         int target = (total == 0) ? 0 : (completed * 100) / total;
-        ValueAnimator bar = ValueAnimator.ofInt(currentAnimatedProgress, target);
-        bar.setDuration(900);
-        bar.setInterpolator(new DecelerateInterpolator(1.5f));
-        bar.addUpdateListener(a -> {
-            int val = (int) a.getAnimatedValue();
-            if (progressBar != null) progressBar.setProgress(val);
-            if (tvProgressPercent != null) tvProgressPercent.setText(val + "%");
+
+        // ── Ring: ObjectAnimator sweeps the arc ───────────
+        if (progressBar != null) {
+            ObjectAnimator ringAnim = ObjectAnimator.ofInt(
+                    progressBar, "progress",
+                    0, target);
+            ringAnim.setDuration(1200);
+            ringAnim.setStartDelay(300);
+            ringAnim.setInterpolator(new AccelerateDecelerateInterpolator());
+            ringAnim.start();
+        }
+
+        // ── % text: ValueAnimator counts up in sync ───────
+        ValueAnimator counter = ValueAnimator.ofInt(0, target);
+        counter.setDuration(1200);
+        counter.setStartDelay(300);
+        counter.setInterpolator(new AccelerateDecelerateInterpolator());
+        counter.addUpdateListener(a -> {
+            if (tvProgressPercent != null && isAdded())
+                tvProgressPercent.setText(a.getAnimatedValue() + "%");
         });
-        bar.start();
+        counter.start();
         currentAnimatedProgress = target;
-        ValueAnimator count = ValueAnimator.ofInt(0, completed);
-        count.setDuration(800);
-        count.setInterpolator(new DecelerateInterpolator());
-        count.addUpdateListener(a -> {
-            if (tvProgressSubtitle != null)
-                tvProgressSubtitle.setText("You have completed "
-                        + a.getAnimatedValue() + " out of " + total + " objectives today.");
-        });
-        count.start();
+
+        // ── "X of Y done" ─────────────────────────────────
+        if (tvProgressSubtitle != null)
+            tvProgressSubtitle.setText(completed + " of " + total + " done");
+
+        // ── Motivation text cross-fades ───────────────────
         String motivation = target == 100 ? "All Done! 🎉"
                 : target >= 50 ? "Almost there! 🔥"
                 : target > 0   ? "Keep going! 💪"
                 : "Ready to Flow?";
         if (tvMotivation != null) {
             final String m = motivation;
-            tvMotivation.animate().alpha(0f).setDuration(150).withEndAction(() -> {
-                tvMotivation.setText(m);
-                tvMotivation.animate().alpha(1f).setDuration(280).start();
-            }).start();
+            tvMotivation.animate().alpha(0f).setDuration(150)
+                    .withEndAction(() -> {
+                        if (!isAdded()) return;
+                        tvMotivation.setText(m);
+                        tvMotivation.animate().alpha(1f)
+                                .setDuration(280).start();
+                    }).start();
         }
+
         if (target == 100 && total > 0
-                && (completed != lastCompletedCount || total != lastTotalCount)) {
+                && (completed != lastCompletedCount
+                || total != lastTotalCount)) {
             triggerDailyCompleteBonus();
         }
         lastCompletedCount = completed;
-        lastTotalCount = total;
+        lastTotalCount     = total;
     }
 
-    // ═══════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
     //   TAB SWITCHING
-    // ═══════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
 
     private void switchTab(String tabType) {
-        currentTab = tabType;
+        currentTab   = tabType;
         aiSortActive = false;
         updateAIPriorityButtonUI();
         updateGeofenceButtonVisibility();
         if (etSearch != null) etSearch.setText("");
 
         int active   = Color.parseColor("#FFFFFF");
-        int inactive = Color.parseColor("#445588");
+        int inactive = Color.parseColor("#556688");
 
-        tvTabRoutines.setTextColor(tabType.equals("routines") ? active : inactive);
-        tvTabTasks.setTextColor(tabType.equals("tasks")       ? active : inactive);
-        tvTabPending.setTextColor(tabType.equals("pending")   ? active : inactive);
+        tvTabRoutines.setTextColor(
+                "routines".equals(tabType) ? active : inactive);
+        tvTabTasks.setTextColor(
+                "tasks".equals(tabType) ? active : inactive);
+        tvTabPending.setTextColor(
+                "pending".equals(tabType) ? active : inactive);
         if (tvTabGeo != null)
-            tvTabGeo.setTextColor(tabType.equals("geofence")  ? active : inactive);
+            tvTabGeo.setTextColor(
+                    "geofence".equals(tabType) ? active : inactive);
 
-        tvTabRoutines.setBackground(tabType.equals("routines")
-                ? ContextCompat.getDrawable(requireContext(), R.drawable.tab_selected_bg) : null);
-        tvTabTasks.setBackground(tabType.equals("tasks")
-                ? ContextCompat.getDrawable(requireContext(), R.drawable.tab_selected_bg) : null);
-        tvTabPending.setBackground(tabType.equals("pending")
-                ? ContextCompat.getDrawable(requireContext(), R.drawable.tab_selected_bg) : null);
+        tvTabRoutines.setBackground("routines".equals(tabType)
+                ? ContextCompat.getDrawable(requireContext(),
+                R.drawable.tab_selected_bg) : null);
+        tvTabTasks.setBackground("tasks".equals(tabType)
+                ? ContextCompat.getDrawable(requireContext(),
+                R.drawable.tab_selected_bg) : null);
+        tvTabPending.setBackground("pending".equals(tabType)
+                ? ContextCompat.getDrawable(requireContext(),
+                R.drawable.tab_selected_bg) : null);
         if (tvTabGeo != null)
-            tvTabGeo.setBackground(tabType.equals("geofence")
-                    ? ContextCompat.getDrawable(requireContext(), R.drawable.tab_selected_bg) : null);
+            tvTabGeo.setBackground("geofence".equals(tabType)
+                    ? ContextCompat.getDrawable(requireContext(),
+                    R.drawable.tab_selected_bg) : null);
 
-        TextView sel = tabType.equals("routines") ? tvTabRoutines
-                : tabType.equals("tasks")    ? tvTabTasks
-                : tabType.equals("pending")  ? tvTabPending
+        TextView sel = "routines".equals(tabType) ? tvTabRoutines
+                : "tasks".equals(tabType)    ? tvTabTasks
+                : "pending".equals(tabType)  ? tvTabPending
                 : tvTabGeo;
         if (sel != null)
             sel.animate().scaleX(1.08f).scaleY(1.08f).setDuration(100)
-                    .withEndAction(() -> sel.animate()
-                            .scaleX(1f).scaleY(1f).setDuration(200)
-                            .setInterpolator(new OvershootInterpolator(2.5f)).start())
-                    .start();
+                    .withEndAction(() -> {
+                        if (isAdded()) sel.animate()
+                                .scaleX(1f).scaleY(1f).setDuration(200)
+                                .setInterpolator(
+                                        new OvershootInterpolator(2.5f))
+                                .start();
+                    }).start();
 
         loadDataForCurrentTab();
     }
 
-    // ═══════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
     //   SWIPE GESTURES
-    // ═══════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
 
     private void setupSwipeGestures(RecyclerView rv) {
         new ItemTouchHelper(new ItemTouchHelper.SimpleCallback(
@@ -680,47 +833,71 @@ public class HomeFragment extends Fragment {
             public boolean onMove(@NonNull RecyclerView r,
                                   @NonNull RecyclerView.ViewHolder vh,
                                   @NonNull RecyclerView.ViewHolder t) {
-                adapter.moveItem(vh.getAdapterPosition(), t.getAdapterPosition());
+                adapter.moveItem(vh.getAdapterPosition(),
+                        t.getAdapterPosition());
                 return true;
             }
 
             @Override
-            public void onSwiped(@NonNull RecyclerView.ViewHolder vh, int dir) {
-                ActionItem item = adapter.getItemAt(vh.getAdapterPosition());
+            public void onSwiped(@NonNull RecyclerView.ViewHolder vh,
+                                 int dir) {
+                ActionItem item =
+                        adapter.getItemAt(vh.getAdapterPosition());
                 ExecutorService ex = Executors.newSingleThreadExecutor();
+
                 if ("geofence".equals(item.type)) {
-                    // Swipe left to delete geofence
-                    GeofenceHelper.removeGeofence(requireContext(), String.valueOf(item.id));
-                    ex.execute(() -> FocusDatabase.getInstance(getContext())
+                    GeofenceHelper.removeGeofence(
+                            requireContext(), String.valueOf(item.id));
+                    ex.execute(() -> FocusDatabase
+                            .getInstance(getContext())
                             .actionDao().delete(item));
-                    Snackbar.make(requireView(), "📍 Geofence removed", Snackbar.LENGTH_SHORT).show();
+                    try {
+                        Snackbar.make(requireView(),
+                                "📍 Geofence removed",
+                                Snackbar.LENGTH_SHORT).show();
+                    } catch (Exception ignored) {}
                     return;
                 }
+
                 if (dir == ItemTouchHelper.RIGHT) {
                     item.isCompleted = !item.isCompleted;
                     if (item.isCompleted) {
                         item.isPending = false;
                         launchConfetti();
-                        XPManager.XPResult result = item.type.equals("routines")
-                                ? XPManager.onRoutineCompleted(requireContext(), item.id)
-                                : XPManager.onTaskCompleted(requireContext(), item.id);
+                        XPManager.XPResult result =
+                                "routines".equals(item.type)
+                                        ? XPManager.onRoutineCompleted(
+                                        requireContext(), item.id)
+                                        : XPManager.onTaskCompleted(
+                                        requireContext(), item.id);
                         if (result != null) handleXPResult(result);
                     }
-                    ex.execute(() -> FocusDatabase.getInstance(getContext())
+                    ex.execute(() -> FocusDatabase
+                            .getInstance(getContext())
                             .actionDao().update(item));
                 } else {
                     ex.execute(() -> {
-                        FocusDatabase.getInstance(getContext()).actionDao().delete(item);
+                        FocusDatabase.getInstance(getContext())
+                                .actionDao().delete(item);
                         if (getActivity() != null) {
                             getActivity().runOnUiThread(() -> {
-                                Snackbar sb = Snackbar.make(requireView(),
-                                        "Flow deleted", Snackbar.LENGTH_LONG);
-                                sb.setAction("UNDO", v ->
-                                        Executors.newSingleThreadExecutor().execute(() ->
-                                                FocusDatabase.getInstance(getContext())
-                                                        .actionDao().insert(item)));
-                                sb.setActionTextColor(Color.parseColor("#4263EB"));
-                                sb.show();
+                                try {
+                                    Snackbar sb = Snackbar.make(
+                                            requireView(),
+                                            "Flow deleted",
+                                            Snackbar.LENGTH_LONG);
+                                    sb.setAction("UNDO", v ->
+                                            Executors
+                                                    .newSingleThreadExecutor()
+                                                    .execute(() ->
+                                                            FocusDatabase
+                                                                    .getInstance(getContext())
+                                                                    .actionDao()
+                                                                    .insert(item)));
+                                    sb.setActionTextColor(
+                                            Color.parseColor("#4263EB"));
+                                    sb.show();
+                                } catch (Exception ignored) {}
                             });
                         }
                     });
@@ -728,20 +905,24 @@ public class HomeFragment extends Fragment {
             }
 
             @Override
-            public void onChildDraw(@NonNull Canvas c, @NonNull RecyclerView rv2,
+            public void onChildDraw(@NonNull Canvas c,
+                                    @NonNull RecyclerView rv2,
                                     @NonNull RecyclerView.ViewHolder vh,
-                                    float dX, float dY, int state, boolean active) {
+                                    float dX, float dY,
+                                    int state, boolean active) {
                 View iv = vh.itemView;
                 Paint p = new Paint();
                 if (state == ItemTouchHelper.ACTION_STATE_SWIPE) {
                     if (dX > 0) {
                         p.setColor(Color.parseColor("#1520C997"));
                         c.drawRoundRect(iv.getLeft(), iv.getTop(),
-                                iv.getLeft() + dX, iv.getBottom(), 24f, 24f, p);
+                                iv.getLeft() + dX, iv.getBottom(),
+                                24f, 24f, p);
                     } else if (dX < 0) {
                         p.setColor(Color.parseColor("#15FA5252"));
                         c.drawRoundRect(iv.getRight() + dX, iv.getTop(),
-                                iv.getRight(), iv.getBottom(), 24f, 24f, p);
+                                iv.getRight(), iv.getBottom(),
+                                24f, 24f, p);
                     }
                 }
                 super.onChildDraw(c, rv2, vh, dX, dY, state, active);
@@ -749,64 +930,33 @@ public class HomeFragment extends Fragment {
         }).attachToRecyclerView(rv);
     }
 
-    // ═══════════════════════════════════════════════════════
-    //   AUTO-ROLLOVER
-    // ═══════════════════════════════════════════════════════
-
-    private void runAutoRolloverIfEnabled() {
-        android.content.SharedPreferences prefs = requireContext()
-                .getSharedPreferences("AppPrefs", android.content.Context.MODE_PRIVATE);
-        if (!prefs.getBoolean("auto_rollover", true)) return;
-        String today = getTodayDateString();
-        if (today.equals(prefs.getString("last_rollover_date", ""))) return;
-        Executors.newSingleThreadExecutor().execute(() -> {
-            Calendar y = Calendar.getInstance();
-            y.add(Calendar.DAY_OF_YEAR, -1);
-            Calendar t = Calendar.getInstance();
-            List<ActionItem> all = FocusDatabase.getInstance(getContext())
-                    .actionDao().getAllItemsSync();
-            int rolled = 0;
-            for (ActionItem item : all) {
-                if (item.type.equals("tasks") && item.isPending
-                        && item.year  == y.get(Calendar.YEAR)
-                        && item.month == y.get(Calendar.MONTH)
-                        && item.day   == y.get(Calendar.DAY_OF_MONTH)) {
-                    item.year  = t.get(Calendar.YEAR);
-                    item.month = t.get(Calendar.MONTH);
-                    item.day   = t.get(Calendar.DAY_OF_MONTH);
-                    item.isPending  = false;
-                    item.timeString = formatTimeString(item.year, item.month,
-                            item.day, item.hour, item.minute);
-                    FocusDatabase.getInstance(getContext()).actionDao().update(item);
-                    rolled++;
-                }
-            }
-            prefs.edit().putString("last_rollover_date", today).apply();
-            if (rolled > 0) {
-                final int cnt = rolled;
-                new Handler(Looper.getMainLooper()).post(() -> {
-                    if (isAdded() && cardRolloverBanner != null) showRolloverBanner(cnt);
-                });
-            }
-        });
-    }
+    // ══════════════════════════════════════════════════════
+    //   ROLLOVER BANNER
+    // ══════════════════════════════════════════════════════
 
     private void showRolloverBanner(int count) {
-        tvRolloverTitle.setText(count + " Task" + (count > 1 ? "s" : "") + " Rolled Over");
-        tvRolloverSubtitle.setText("Yesterday's pending task"
+        if (!isAdded() || cardRolloverBanner == null) return;
+        tvRolloverTitle.setText(count + " Task"
+                + (count > 1 ? "s" : "") + " Rolled Over");
+        tvRolloverSubtitle.setText("Yesterday's task"
                 + (count > 1 ? "s" : "") + " moved to today ✨");
         cardRolloverBanner.setVisibility(View.VISIBLE);
         cardRolloverBanner.setAlpha(0f);
         cardRolloverBanner.setTranslationY(-60f);
-        cardRolloverBanner.animate().alpha(1f).translationY(0f).setDuration(500)
+        cardRolloverBanner.animate().alpha(1f).translationY(0f)
+                .setDuration(500)
                 .setInterpolator(new OvershootInterpolator(1.2f)).start();
-        ivDismissRollover.setOnClickListener(v -> dismissRolloverBanner());
-        new Handler(Looper.getMainLooper()).postDelayed(this::dismissRolloverBanner, 6000);
+        if (ivDismissRollover != null) {
+            ivDismissRollover.setOnClickListener(v -> dismissRolloverBanner());
+        }
+        new Handler(Looper.getMainLooper())
+                .postDelayed(this::dismissRolloverBanner, 6000);
     }
 
     private void dismissRolloverBanner() {
         if (cardRolloverBanner == null) return;
-        cardRolloverBanner.animate().alpha(0f).translationY(-40f).setDuration(350)
+        cardRolloverBanner.animate()
+                .alpha(0f).translationY(-40f).setDuration(350)
                 .withEndAction(() -> {
                     if (cardRolloverBanner != null) {
                         cardRolloverBanner.setVisibility(View.GONE);
@@ -815,65 +965,83 @@ public class HomeFragment extends Fragment {
                 }).start();
     }
 
-    // ═══════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
     //   SEARCH BAR
-    // ═══════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
 
     private void setupSearchBar() {
         etSearch.addTextChangedListener(new TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence s, int st, int c, int a) {}
-            @Override public void onTextChanged(CharSequence s, int st, int b, int c) {
-                ivClearSearch.setVisibility(s.length() > 0 ? View.VISIBLE : View.GONE);
+            @Override public void beforeTextChanged(
+                    CharSequence s, int st, int c, int a) {}
+            @Override public void onTextChanged(
+                    CharSequence s, int st, int b, int c) {
+                if (ivClearSearch != null) {
+                    ivClearSearch.setVisibility(
+                            s.length() > 0 ? View.VISIBLE : View.GONE);
+                }
                 adapter.filter(s.toString());
             }
             @Override public void afterTextChanged(Editable s) {}
         });
-        ivClearSearch.setOnClickListener(v -> {
-            etSearch.setText("");
-            etSearch.clearFocus();
-        });
+        if (ivClearSearch != null) {
+            ivClearSearch.setOnClickListener(v -> {
+                etSearch.setText("");
+                etSearch.clearFocus();
+            });
+        }
     }
 
-    // ═══════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
     //   GREETING CARD
-    // ═══════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
 
     private void setupGreetingCard() {
         int h = Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
-        String greeting = h >= 5 && h < 12 ? "Good Morning ☀️"
-                : h < 17 ? "Good Afternoon 🌤️"
-                : h < 21 ? "Good Evening 🌆" : "Good Night 🌙";
+        String greeting = h >= 5 && h < 12 ? "GOOD\nMORNING"
+                : h < 17 ? "GOOD\nAFTERNOON"
+                : h < 21 ? "GOOD\nEVENING"
+                : "GOOD\nNIGHT";
         tvGreetingTime.setText(greeting);
+
         android.content.SharedPreferences prefs = requireContext()
-                .getSharedPreferences("AppPrefs", android.content.Context.MODE_PRIVATE);
-        tvGreetingName.setText(prefs.getString("user_name", "Focus Master"));
+                .getSharedPreferences("AppPrefs",
+                        android.content.Context.MODE_PRIVATE);
+        tvGreetingName.setText(
+                prefs.getString("user_name", "Focus Master"));
+
         String photoUri = prefs.getString("profile_image", null);
-        if (photoUri != null) {
+        if (photoUri != null && ivProfilePhoto != null) {
             try { ivProfilePhoto.setImageURI(Uri.parse(photoUri)); }
             catch (Exception ignored) {}
         }
+
         String savedQuote = prefs.getString("saved_daily_quote", null);
         if (savedQuote != null && !savedQuote.isEmpty()) {
             tvDailyQuote.setText("\"" + savedQuote + "\"");
         } else {
             int day = Calendar.getInstance().get(Calendar.DAY_OF_YEAR);
-            tvDailyQuote.setText("\"" + QUOTES[day % QUOTES.length] + "\"");
+            tvDailyQuote.setText(
+                    "\"" + QUOTES[day % QUOTES.length] + "\"");
         }
+
         if (isInternetAvailable()
-                && !getTodayDateString().equals(prefs.getString("quote_fetch_date", ""))) {
+                && !getTodayDateString().equals(
+                prefs.getString("quote_fetch_date", ""))) {
             fetchQuoteFromInternet();
         }
     }
 
-    // ═══════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
     //   CONFETTI
-    // ═══════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
 
     private void launchConfetti() {
         if (konfettiView == null) return;
-        Party party = new PartyFactory(new Emitter(300L, TimeUnit.MILLISECONDS).max(80))
+        Party party = new PartyFactory(
+                new Emitter(300L, TimeUnit.MILLISECONDS).max(80))
                 .spread(60)
-                .colors(Arrays.asList(0xFF4263EB, 0xFF20C997, 0xFFFFD43B,
+                .colors(Arrays.asList(
+                        0xFF4263EB, 0xFF20C997, 0xFFFFD43B,
                         0xFFFA5252, 0xFFCC5DE8, 0xFF7B5FFF))
                 .setSpeedBetween(2f, 6f)
                 .position(new Position.Relative(0.5, 0.4))
@@ -881,12 +1049,13 @@ public class HomeFragment extends Fragment {
         konfettiView.start(party);
     }
 
-    // ═══════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
     //   TIMER
-    // ═══════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
 
     private void startLiveTimer() {
-        if (timerRunnable != null) timerHandler.removeCallbacks(timerRunnable);
+        if (timerRunnable != null)
+            timerHandler.removeCallbacks(timerRunnable);
         timerRunnable = new Runnable() {
             @Override public void run() {
                 updateNextTaskTimer();
@@ -898,23 +1067,21 @@ public class HomeFragment extends Fragment {
 
     private void updateNextTaskTimer() {
         if (allAppItems.isEmpty()) {
-            if (tvNextTaskTimer != null)
-                tvNextTaskTimer.setText("Next: No upcoming tasks");
+            if (tvNextTaskTimer != null) tvNextTaskTimer.setText("Next: –");
             return;
         }
         long now = System.currentTimeMillis();
         List<ActionItem> upcoming = new ArrayList<>();
         for (ActionItem item : allAppItems) {
             if (!item.isCompleted && !item.isPending
-                    && !item.type.equals("history_routine")
-                    && !item.type.equals("geofence")) {
+                    && !"history_routine".equals(item.type)
+                    && !"geofence".equals(item.type)) {
                 long t = getTaskTimeMillis(item);
                 if (t > now) upcoming.add(item);
             }
         }
         if (upcoming.isEmpty()) {
-            if (tvNextTaskTimer != null)
-                tvNextTaskTimer.setText("Next: No upcoming tasks");
+            if (tvNextTaskTimer != null) tvNextTaskTimer.setText("Next: –");
             return;
         }
         Collections.sort(upcoming, (a, b) ->
@@ -924,13 +1091,15 @@ public class HomeFragment extends Fragment {
         long hours = (diff / 3_600_000L) % 24;
         long mins  = (diff / 60_000L) % 60;
         if (tvNextTaskTimer != null)
-            tvNextTaskTimer.setText("Next: " + next.title + " in "
-                    + (hours > 0 ? hours + "h " + mins + "m" : mins + "m"));
+            tvNextTaskTimer.setText(next.title + " in "
+                    + (hours > 0
+                    ? hours + "h " + mins + "m"
+                    : mins + "m"));
     }
 
     private long getTaskTimeMillis(ActionItem item) {
         Calendar cal = Calendar.getInstance();
-        if (item.type.equals("routines")) {
+        if ("routines".equals(item.type)) {
             cal.set(Calendar.HOUR_OF_DAY, item.hour);
             cal.set(Calendar.MINUTE, item.minute);
             cal.set(Calendar.SECOND, 0);
@@ -938,15 +1107,16 @@ public class HomeFragment extends Fragment {
             if (cal.getTimeInMillis() < System.currentTimeMillis())
                 cal.add(Calendar.DAY_OF_YEAR, 1);
         } else {
-            cal.set(item.year, item.month, item.day, item.hour, item.minute, 0);
+            cal.set(item.year, item.month, item.day,
+                    item.hour, item.minute, 0);
             cal.set(Calendar.MILLISECOND, 0);
         }
         return cal.getTimeInMillis();
     }
 
-    // ═══════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
     //   HELPERS
-    // ═══════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════
 
     private int getDayOfWeekInt(String day) {
         if (day == null) return Calendar.MONDAY;
@@ -963,8 +1133,9 @@ public class HomeFragment extends Fragment {
 
     private boolean isInternetAvailable() {
         try {
-            ConnectivityManager cm = (ConnectivityManager) requireContext()
-                    .getSystemService(android.content.Context.CONNECTIVITY_SERVICE);
+            ConnectivityManager cm = (ConnectivityManager)
+                    requireContext().getSystemService(
+                            android.content.Context.CONNECTIVITY_SERVICE);
             if (cm == null) return false;
             NetworkInfo ni = cm.getActiveNetworkInfo();
             return ni != null && ni.isConnected();
@@ -973,15 +1144,17 @@ public class HomeFragment extends Fragment {
 
     private String getTodayDateString() {
         Calendar c = Calendar.getInstance();
-        return c.get(Calendar.YEAR) + "-" + c.get(Calendar.MONTH)
-                + "-" + c.get(Calendar.DAY_OF_MONTH);
+        return c.get(Calendar.YEAR) + "-"
+                + c.get(Calendar.MONTH) + "-"
+                + c.get(Calendar.DAY_OF_MONTH);
     }
 
     private void fetchQuoteFromInternet() {
         Executors.newSingleThreadExecutor().execute(() -> {
             try {
                 URL url = new URL("https://zenquotes.io/api/today");
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                HttpURLConnection conn =
+                        (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
                 conn.setConnectTimeout(5000);
                 conn.setReadTimeout(5000);
@@ -991,19 +1164,26 @@ public class HomeFragment extends Fragment {
                             new InputStreamReader(conn.getInputStream()));
                     StringBuilder sb = new StringBuilder();
                     String line;
-                    while ((line = reader.readLine()) != null) sb.append(line);
+                    while ((line = reader.readLine()) != null)
+                        sb.append(line);
                     reader.close();
                     conn.disconnect();
                     String json = sb.toString().trim();
-                    if (json.startsWith("[")) json = json.substring(1);
-                    if (json.endsWith("]"))   json = json.substring(0, json.length() - 1);
+                    if (json.startsWith("["))
+                        json = json.substring(1);
+                    if (json.endsWith("]"))
+                        json = json.substring(0, json.length() - 1);
                     JSONObject obj = new JSONObject(json);
-                    String q = obj.getString("q") + " — " + obj.getString("a");
-                    android.content.SharedPreferences p = requireContext()
-                            .getSharedPreferences("AppPrefs",
+                    String q = obj.getString("q")
+                            + " — " + obj.getString("a");
+                    android.content.SharedPreferences p =
+                            requireContext().getSharedPreferences(
+                                    "AppPrefs",
                                     android.content.Context.MODE_PRIVATE);
                     p.edit().putString("saved_daily_quote", q)
-                            .putString("quote_fetch_date", getTodayDateString()).apply();
+                            .putString("quote_fetch_date",
+                                    getTodayDateString())
+                            .apply();
                     new Handler(Looper.getMainLooper()).post(() -> {
                         if (tvDailyQuote != null && isAdded())
                             tvDailyQuote.setText("\"" + q + "\"");
@@ -1015,7 +1195,8 @@ public class HomeFragment extends Fragment {
         });
     }
 
-    private String formatTimeString(int year, int month, int day, int hour, int minute) {
+    private String formatTimeString(int year, int month, int day,
+                                    int hour, int minute) {
         String amPm = hour >= 12 ? "PM" : "AM";
         int h = hour % 12;
         if (h == 0) h = 12;
@@ -1026,6 +1207,7 @@ public class HomeFragment extends Fragment {
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        if (timerRunnable != null) timerHandler.removeCallbacks(timerRunnable);
+        if (timerRunnable != null)
+            timerHandler.removeCallbacks(timerRunnable);
     }
 }

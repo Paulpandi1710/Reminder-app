@@ -11,9 +11,6 @@
         android:icon="@drawable/ic_calendar"
         android:title="Planner"/>
 
-    <!-- FAB placeholder — keeps center spacing -->
-    <!-- The actual FAB is in activity_main.xml anchored to BottomAppBar -->
-
     <item
         android:id="@+id/nav_stats"
         android:icon="@drawable/ic_stats"
@@ -21,12 +18,7 @@
 
     <item
         android:id="@+id/nav_ai"
-        android:icon="@drawable/ic_timer"
-        android:title="AI"/>
-
-    <item
-        android:id="@+id/nav_settings"
-        android:icon="@drawable/ic_settings"
-        android:title="Settings"/>
+        android:icon="@drawable/ic_mic"
+        android:title="Help"/>
 
 </menu>

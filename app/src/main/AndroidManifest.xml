@@ -15,16 +15,14 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission
+        android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+        tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.READ_CALENDAR" />
-
-
-    <!-- ── Voice to Task ── -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
-
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
-    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
 
     <application
         android:allowBackup="true"
@@ -37,6 +35,11 @@
         android:theme="@style/Theme.Thiru"
         tools:targetApi="31">
 
+        <!-- ══════════════════════════════════════════════
+             stateHidden|adjustResize — required for IME
+             insets to be delivered to our listener.
+             Without adjustResize, imeBottom is always 0.
+        ══════════════════════════════════════════════════ -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -46,8 +49,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-
 
         <activity
             android:name=".OemPermissionActivity"
@@ -61,8 +62,8 @@
             android:excludeFromRecents="true"
             android:launchMode="singleTop"
             android:exported="false"
-            android:theme="@style/Theme.Material3.Light.NoActionBar"
-            android:windowSoftInputMode="adjustResize"/>
+            android:theme="@style/Theme.Thiru"
+            android:windowSoftInputMode="stateHidden|adjustResize" />
 
         <service
             android:name=".AlarmService"
@@ -74,6 +75,7 @@
             android:exported="true">
             <intent-filter android:priority="999">
                 <action android:name="com.example.thiru.ALARM_TRIGGER" />
+                <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </receiver>
 
@@ -86,13 +88,14 @@
             </intent-filter>
         </receiver>
 
-        <!-- ── WorkManager — Weekly AI Summary ── -->
-        <provider
-            android:name="androidx.work.impl.WorkManagerInitializer"
-            android:authorities="${applicationId}.workmanager-init"
-            android:exported="false"
-            android:multiprocess="true"
-            tools:node="remove" />
+        <receiver
+            android:name=".GeofenceBroadcastReceiver"
+            android:exported="true"
+            android:permission="android.permission.ACCESS_FINE_LOCATION" />
+
+        <!-- WorkManagerInitializer REMOVED — was causing
+             2 hard build errors. WorkManager auto-initializes
+             itself — no override needed. -->
 
     </application>
 </manifest>
