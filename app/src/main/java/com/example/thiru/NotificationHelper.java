@@ -81,18 +81,22 @@ public class NotificationHelper {
         }
     }
 
-    // ── Relative time label ───────────────────────────────
+    // ── Premium Exact Time Label ───────────────────────────────
     public static String relativeTime(long ts) {
         long diff = System.currentTimeMillis() - ts;
         long mins = diff / 60_000L;
-        if (mins < 1)   return "Just now";
-        if (mins < 60)  return mins + "m ago";
+
+        java.text.SimpleDateFormat timeFormat = new java.text.SimpleDateFormat("hh:mm a", java.util.Locale.getDefault());
+        java.text.SimpleDateFormat dateFormat = new java.text.SimpleDateFormat("d MMM, hh:mm a", java.util.Locale.getDefault());
+
         long hours = mins / 60;
-        if (hours < 24) return hours + "h ago";
-        long days = hours / 24;
-        if (days < 7)   return days + "d ago";
-        return new java.text.SimpleDateFormat("d MMM", java.util.Locale.getDefault())
-                .format(new java.util.Date(ts));
+        if (hours < 24) {
+            // Show exact time for today instead of just relative time
+            if (mins < 1) return "Just now • " + timeFormat.format(new java.util.Date(ts));
+            return mins + "m ago • " + timeFormat.format(new java.util.Date(ts));
+        }
+
+        return dateFormat.format(new java.util.Date(ts));
     }
 
     // ── Internal ──────────────────────────────────────────

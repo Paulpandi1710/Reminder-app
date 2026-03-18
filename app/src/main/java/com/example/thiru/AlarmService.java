@@ -95,16 +95,9 @@ public class AlarmService extends Service {
             startActivity(screenIntent);
         } catch (Exception e) {
             Log.e(TAG, "startActivity failed: " + e.getMessage());
-            // fullScreenIntent on notification is the fallback
         }
 
-        // ── Step 5: Log to in-app notifications ───────────
-        try {
-            NotificationHelper.add(this,
-                    "⏰ " + taskTitle,
-                    "Alarm is ringing for \"" + taskTitle + "\"",
-                    "alarm");
-        } catch (Exception ignored) {}
+        // REMOVED duplicate logging here. AlarmReceiver handles it perfectly now!
 
         return START_STICKY;
     }

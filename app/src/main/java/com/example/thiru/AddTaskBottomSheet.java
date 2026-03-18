@@ -11,10 +11,14 @@ import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.OvershootInterpolator;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
+import com.google.android.material.bottomsheet.BottomSheetBehavior;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.card.MaterialCardView;
@@ -29,7 +33,8 @@ public class AddTaskBottomSheet extends BottomSheetDialogFragment {
     // ── Views ─────────────────────────────────────────────
     private TextInputEditText etTaskTitle, etDescription, etDuration;
     private TextView tvSelectedTime, tvSelectedDate, tvSelectedRepeat;
-    private MaterialButton btnTypeRoutine, btnTypeTask, btnSave, btnCancel;
+    private TextView btnTypeRoutine, btnTypeTask;
+    private MaterialButton btnSave, btnCancel;
     private LinearLayout btnPickTime, btnPickDate, btnPickRepeat;
 
     // ── State ─────────────────────────────────────────────
@@ -63,6 +68,26 @@ public class AddTaskBottomSheet extends BottomSheetDialogFragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
+        // ══════════════════════════════════════════════════════
+        //   SPRING ENTRANCE ANIMATION
+        // ══════════════════════════════════════════════════════
+        View root = view.findViewById(R.id.bottomSheetRoot);
+        if (root != null) {
+            root.setTranslationY(400f);
+            root.animate()
+                    .translationY(0f)
+                    .setDuration(600)
+                    .setInterpolator(new OvershootInterpolator(1.2f))
+                    .start();
+        }
+
+        // Ensure background of the dialog is transparent so our rounded corners show
+        if (getDialog() instanceof BottomSheetDialog) {
+            BottomSheetBehavior<?> behavior = ((BottomSheetDialog) getDialog()).getBehavior();
+            behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+            ((View) view.getParent()).setBackgroundColor(Color.TRANSPARENT);
+        }
+
         // ── Bind views ────────────────────────────────────
         etTaskTitle          = view.findViewById(R.id.etTaskTitle);
         etDescription        = view.findViewById(R.id.etDescription);
@@ -95,7 +120,7 @@ public class AddTaskBottomSheet extends BottomSheetDialogFragment {
         updateTimeDisplay();
         tvSelectedDate.setText("Today");
         tvSelectedRepeat.setText("None");
-        updateTypeSelection(); // sets initial visibility
+        updateTypeSelection();
 
         loadHistoryAsync();
 
@@ -178,38 +203,26 @@ public class AddTaskBottomSheet extends BottomSheetDialogFragment {
         });
     }
 
-    // ══════════════════════════════════════════════════════
-    //   KEY FIX: Show/hide date & repeat based on type
-    //   • Date picker  → ONLY for tasks (one-time events)
-    //   • Repeat picker → ONLY for routines (recurring)
-    // ══════════════════════════════════════════════════════
     private void updateTypeSelection() {
         boolean isRoutine = "routines".equals(selectedType);
 
-        // ── Show date only for tasks ───────────────────────
         btnPickDate.setVisibility(isRoutine ? View.GONE : View.VISIBLE);
-
-        // ── Show repeat only for routines ──────────────────
         btnPickRepeat.setVisibility(isRoutine ? View.VISIBLE : View.GONE);
 
-        // ── When switching to task, clear repeat ───────────
         if (!isRoutine) {
             tvSelectedRepeat.setText("None");
         }
 
-        // ── Visual button styles ───────────────────────────
-        int activeBg   = 0xFF4263EB;
-        int inactiveBg = 0xFF0D1A33;
+        // ── PREMIUM NEON GLOW STYLING ───────────────────────────
         int activeText = 0xFFFFFFFF;
-        int inactiveText = 0xFF445588;
+        int inactiveText = 0xFF556688;
 
-        btnTypeRoutine.setBackgroundColor(isRoutine ? activeBg : inactiveBg);
         btnTypeRoutine.setTextColor(isRoutine ? activeText : inactiveText);
-        btnTypeTask.setBackgroundColor(!isRoutine ? activeBg : inactiveBg);
         btnTypeTask.setTextColor(!isRoutine ? activeText : inactiveText);
-    }
 
-    // ── AI helpers (unchanged) ────────────────────────────
+        btnTypeRoutine.setBackground(isRoutine ? ContextCompat.getDrawable(requireContext(), R.drawable.tab_selected_glow) : null);
+        btnTypeTask.setBackground(!isRoutine ? ContextCompat.getDrawable(requireContext(), R.drawable.tab_selected_glow) : null);
+    }
 
     private void showCategoryChip(SmartCategoryEngine.Category cat) {
         tvCategoryEmoji.setText(cat.emoji);
@@ -294,7 +307,6 @@ public class AddTaskBottomSheet extends BottomSheetDialogFragment {
         String timeString  = buildTimeString(selectedHour, selectedMinute);
         String repeatMode  = tvSelectedRepeat.getText().toString();
 
-        // Tasks are always one-time — force repeatMode = None
         if ("tasks".equals(selectedType)) repeatMode = "None";
 
         ActionItem item = new ActionItem(

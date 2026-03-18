@@ -69,43 +69,15 @@
                     android:textStyle="bold"
                     android:letterSpacing="-0.01" />
 
-                <LinearLayout
+                <TextView
+                    android:id="@+id/tvTime"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
                     android:layout_marginTop="4dp"
-                    android:gravity="center_vertical">
-
-                    <View
-                        android:id="@+id/viewUrgentDot"
-                        android:layout_width="6dp"
-                        android:layout_height="6dp"
-                        android:layout_marginEnd="6dp"
-                        android:background="@drawable/circle_bg_light"
-                        android:backgroundTint="#FA5252"
-                        android:visibility="gone" />
-
-                    <TextView
-                        android:id="@+id/tvTime"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="09:00 AM"
-                        android:textColor="#556699"
-                        android:textSize="12sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:id="@+id/tvStatusLabel"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="6dp"
-                        android:text="· Urgent"
-                        android:textColor="#FA5252"
-                        android:textSize="12sp"
-                        android:textStyle="bold"
-                        android:visibility="gone" />
-
-                </LinearLayout>
+                    android:text="09:00 AM"
+                    android:textColor="#556699"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
 
                 <LinearLayout
                     android:id="@+id/layoutCompletedStatus"

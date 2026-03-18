@@ -1,8 +1,13 @@
 package com.example.thiru;
 
+import android.animation.ObjectAnimator;
+import android.animation.ValueAnimator;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
+import android.view.animation.AccelerateDecelerateInterpolator;
+import android.view.animation.DecelerateInterpolator;
+import android.view.animation.OvershootInterpolator;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import androidx.activity.OnBackPressedCallback;
@@ -39,11 +44,55 @@ public class MainActivity extends AppCompatActivity {
         tvNotifBadge        = findViewById(R.id.tvNotifBadge);
         layoutTopRightIcons = findViewById(R.id.layoutTopRightIcons);
 
+        View fabAura            = findViewById(R.id.fabAura);
+        View bottomNavContainer = findViewById(R.id.bottomNavContainer);
+
         setupWindowInsets();
 
         WeeklySummaryScheduler.schedule(this);
         GeofenceHelper.reRegisterAll(this);
         FestivalScheduler.schedule(this);
+
+        // ══════════════════════════════════════════════════════
+        //   PREMIUM FLOATING ENTRANCE & AURA ANIMATION
+        // ══════════════════════════════════════════════════════
+        if (bottomNavContainer != null) {
+            bottomNavContainer.setTranslationY(180f);
+            bottomNavContainer.setAlpha(0f);
+            bottomNavContainer.animate().translationY(0f).alpha(1f)
+                    .setDuration(1200).setStartDelay(200)
+                    .setInterpolator(new DecelerateInterpolator(2f)).start();
+        }
+
+        if (fabAura != null) {
+            ObjectAnimator auraScaleX = ObjectAnimator.ofFloat(fabAura, "scaleX", 0.9f, 1.4f, 0.9f);
+            ObjectAnimator auraScaleY = ObjectAnimator.ofFloat(fabAura, "scaleY", 0.9f, 1.4f, 0.9f);
+            ObjectAnimator auraAlpha = ObjectAnimator.ofFloat(fabAura, "alpha", 0.6f, 0.0f, 0.6f);
+
+            auraScaleX.setDuration(3500);
+            auraScaleY.setDuration(3500);
+            auraAlpha.setDuration(3500);
+
+            auraScaleX.setRepeatCount(ValueAnimator.INFINITE);
+            auraScaleY.setRepeatCount(ValueAnimator.INFINITE);
+            auraAlpha.setRepeatCount(ValueAnimator.INFINITE);
+
+            auraScaleX.setInterpolator(new AccelerateDecelerateInterpolator());
+            auraScaleY.setInterpolator(new AccelerateDecelerateInterpolator());
+            auraAlpha.setInterpolator(new AccelerateDecelerateInterpolator());
+
+            auraScaleX.start();
+            auraScaleY.start();
+            auraAlpha.start();
+        }
+
+        if (fab != null) {
+            ObjectAnimator fabFloat = ObjectAnimator.ofFloat(fab, "translationY", 0f, -8f, 0f);
+            fabFloat.setDuration(4500);
+            fabFloat.setRepeatCount(ValueAnimator.INFINITE);
+            fabFloat.setInterpolator(new AccelerateDecelerateInterpolator());
+            fabFloat.start();
+        }
 
         if (savedInstanceState == null) {
             loadMainFragment(new HomeFragment(), R.id.nav_home);
@@ -62,9 +111,18 @@ public class MainActivity extends AppCompatActivity {
             return true;
         });
 
+        // ══════════════════════════════════════════════════════
+        //   SQUASH & STRETCH CLICK ANIMATION
+        // ══════════════════════════════════════════════════════
         fab.setOnClickListener(v -> {
-            AddTaskBottomSheet sheet = new AddTaskBottomSheet();
-            sheet.show(getSupportFragmentManager(), "AddTask");
+            fab.animate().scaleX(0.85f).scaleY(0.85f).setDuration(150)
+                    .setInterpolator(new DecelerateInterpolator())
+                    .withEndAction(() -> {
+                        fab.animate().scaleX(1f).scaleY(1f).setDuration(400)
+                                .setInterpolator(new OvershootInterpolator(3f)).start();
+                        AddTaskBottomSheet sheet = new AddTaskBottomSheet();
+                        sheet.show(getSupportFragmentManager(), "AddTask");
+                    }).start();
         });
 
         if (cardBellIcon != null) {
@@ -84,7 +142,6 @@ public class MainActivity extends AppCompatActivity {
             bottomNav.setSelectedItemId(R.id.nav_home);
         }
 
-        // ── Back press — non-deprecated ───────────────────
         getOnBackPressedDispatcher().addCallback(this,
                 new OnBackPressedCallback(true) {
                     @Override
@@ -135,73 +192,61 @@ public class MainActivity extends AppCompatActivity {
     public void updateNotificationBadge() {
         if (tvNotifBadge == null) return;
         int count = NotificationHelper.getUnreadCount(this);
-        tvNotifBadge.setVisibility(count > 0 ? View.VISIBLE : View.GONE);
-        tvNotifBadge.setText(count > 9 ? "9+" : String.valueOf(count));
+
+        if (count > 0) {
+            if (tvNotifBadge.getVisibility() != View.VISIBLE) {
+                tvNotifBadge.setVisibility(View.VISIBLE);
+                tvNotifBadge.setScaleX(0f);
+                tvNotifBadge.setScaleY(0f);
+                tvNotifBadge.animate().scaleX(1f).scaleY(1f)
+                        .setDuration(400)
+                        .setInterpolator(new android.view.animation.OvershootInterpolator(2.5f))
+                        .start();
+            }
+            tvNotifBadge.setText(count > 9 ? "9+" : String.valueOf(count));
+        } else {
+            tvNotifBadge.setVisibility(View.GONE);
+        }
     }
 
     // ══════════════════════════════════════════════════════
-    //   WINDOW INSETS — ROOT CAUSE FIX
-    //
-    //   THE BUG: Two separate listeners on root + fragContainer.
-    //   Root listener returned CONSUMED → Android stops all
-    //   inset propagation to children → fragContainer listener
-    //   NEVER fired → input bar always hidden behind nav bar.
-    //
-    //   THE FIX: ONE listener on root only.
-    //   Inside it we manually call setPadding on BOTH:
-    //     - root:          system bar bottom padding
-    //     - fragContainer: keyboard-aware bottom padding
-    //
-    //   This guarantees both always update together on every
-    //   single inset change (keyboard open/close/rotate).
-    //
-    //   Manifest stateHidden|adjustResize is required —
-    //   it tells Android to report ime() insets to our
-    //   listener. Without it imeBottom is always 0.
+    //   FIXED: PERFECT WINDOW INSETS (No black bar!)
     // ══════════════════════════════════════════════════════
     private void setupWindowInsets() {
         View root          = findViewById(R.id.main);
         View fragContainer = findViewById(R.id.fragment_container);
         View topIcons      = findViewById(R.id.layoutTopRightIcons);
+        View bottomNav     = findViewById(R.id.bottomNavContainer);
 
-        final int bottomBarH = Math.round(
-                80 * getResources().getDisplayMetrics().density);
-
+        // DO NOT pad the root view anymore. That is what caused the black bar!
         ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
-            int sysTop    = insets.getInsets(
-                    WindowInsetsCompat.Type.systemBars()).top;
-            int sysBottom = insets.getInsets(
-                    WindowInsetsCompat.Type.systemBars()).bottom;
-            int imeBottom = insets.getInsets(
-                    WindowInsetsCompat.Type.ime()).bottom;
+            int sysTop    = insets.getInsets(WindowInsetsCompat.Type.systemBars()).top;
+            int sysBottom = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom;
+            int imeBottom = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom;
 
-            // ── 1. Top-right icons below status bar ───────────
+            // Fix 1: Ensure top icons don't hide by giving them a safer top margin
             if (topIcons != null) {
                 android.view.ViewGroup.MarginLayoutParams lp =
-                        (android.view.ViewGroup.MarginLayoutParams)
-                                topIcons.getLayoutParams();
-                lp.topMargin = sysTop + Math.round(
-                        8 * getResources().getDisplayMetrics().density);
+                        (android.view.ViewGroup.MarginLayoutParams) topIcons.getLayoutParams();
+                lp.topMargin = sysTop + Math.round(16 * getResources().getDisplayMetrics().density);
                 topIcons.setLayoutParams(lp);
             }
 
-            // ── 2. ROOT gets ONLY sysBottom — never imeBottom ─
-            // fragContainer handles the keyboard offset below.
-            // Adding imeBottom here AND on fragContainer was
-            // causing DOUBLE padding — input bar pushed off screen.
-            v.setPadding(0, 0, 0, sysBottom);
+            // Fix 2: Move the floating nav container UP by sysBottom, instead of padding the whole app
+            if (bottomNav != null) {
+                android.view.ViewGroup.MarginLayoutParams lp =
+                        (android.view.ViewGroup.MarginLayoutParams) bottomNav.getLayoutParams();
+                lp.bottomMargin = sysBottom + Math.round(8 * getResources().getDisplayMetrics().density);
+                bottomNav.setLayoutParams(lp);
+            }
 
-            // ── 3. fragContainer — keyboard-aware padding ─────
-            // This is the ONLY place imeBottom is applied.
-            // No double-stacking with root.
+            // Fix 3: Keep fragment scrolling perfectly behind the nav
             if (fragContainer != null) {
                 if (imeBottom > 0) {
-                    // Keyboard open → lift content above keyboard
                     fragContainer.setPadding(0, 0, 0, imeBottom);
                 } else {
-                    // Keyboard closed → space for bottom nav bar
-                    fragContainer.setPadding(0, 0, 0,
-                            bottomBarH + sysBottom);
+                    int bottomBarTotalH = Math.round(110 * getResources().getDisplayMetrics().density) + sysBottom;
+                    fragContainer.setPadding(0, 0, 0, bottomBarTotalH);
                 }
             }
 

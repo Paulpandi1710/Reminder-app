@@ -1,5 +1,7 @@
 package com.example.thiru;
 
+import android.animation.Animator;
+import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
 import android.animation.ValueAnimator;
 import android.graphics.Canvas;
@@ -66,8 +68,8 @@ public class HomeFragment extends Fragment {
     private ImageView ivProfilePhoto;
     private KonfettiView konfettiView;
     private EditText  etSearch;
-    private View ivClearSearch; // Changed to View to match MaterialCardView in new XML
-    private View cardRolloverBanner; // Changed to View to handle generic visibility
+    private View ivClearSearch;
+    private View cardRolloverBanner;
     private TextView  tvRolloverTitle, tvRolloverSubtitle;
     private ImageView ivDismissRollover;
     private MaterialCardView cardGreeting, cardProgress, cardXP;
@@ -79,6 +81,10 @@ public class HomeFragment extends Fragment {
     private boolean   aiSortActive = false;
     private List<ActionItem> lastTabItems = new ArrayList<>();
     private MaterialCardView cardAddGeofence;
+
+    // Component Animation Views
+    private View viewProgressAura;
+    private List<Animator> backgroundAnimators = new ArrayList<>();
 
     private List<ActionItem> allAppItems = new ArrayList<>();
     private Handler  timerHandler  = new Handler(Looper.getMainLooper());
@@ -144,6 +150,8 @@ public class HomeFragment extends Fragment {
         tvAIPriorityLabel  = view.findViewById(R.id.tvAIPriorityLabel);
         cardAddGeofence    = view.findViewById(R.id.cardAddGeofence);
 
+        viewProgressAura = view.findViewById(R.id.viewProgressAura);
+
         setupAIPriorityButton();
         setupGeofenceButton();
         setupGreetingCard();
@@ -204,11 +212,41 @@ public class HomeFragment extends Fragment {
         loadDataForCurrentTab();
         observeProgressAndTimer();
         view.post(this::playEntranceAnimations);
+        startContinuousBackgroundAnimations();
     }
 
     // ══════════════════════════════════════════════════════
-    //   GEOFENCE
+    //   CLEAN COMPONENT ANIMATIONS
     // ══════════════════════════════════════════════════════
+    private void startContinuousBackgroundAnimations() {
+
+        // Deep Neon Aura Breathing behind the ring (kept because it matches the mockup well)
+        if (viewProgressAura != null) {
+            ObjectAnimator scaleX = ObjectAnimator.ofFloat(viewProgressAura, "scaleX", 0.8f, 1.05f, 0.8f);
+            ObjectAnimator scaleY = ObjectAnimator.ofFloat(viewProgressAura, "scaleY", 0.8f, 1.05f, 0.8f);
+            ObjectAnimator alpha = ObjectAnimator.ofFloat(viewProgressAura, "alpha", 0.15f, 0.6f, 0.15f);
+
+            scaleX.setDuration(6000);
+            scaleY.setDuration(6000);
+            alpha.setDuration(6000);
+
+            scaleX.setRepeatCount(ValueAnimator.INFINITE);
+            scaleY.setRepeatCount(ValueAnimator.INFINITE);
+            alpha.setRepeatCount(ValueAnimator.INFINITE);
+
+            scaleX.setInterpolator(new AccelerateDecelerateInterpolator());
+            scaleY.setInterpolator(new AccelerateDecelerateInterpolator());
+            alpha.setInterpolator(new AccelerateDecelerateInterpolator());
+
+            scaleX.start();
+            scaleY.start();
+            alpha.start();
+
+            backgroundAnimators.add(scaleX);
+            backgroundAnimators.add(scaleY);
+            backgroundAnimators.add(alpha);
+        }
+    }
 
     private void setupGeofenceButton() {
         if (cardAddGeofence == null) return;
@@ -223,10 +261,6 @@ public class HomeFragment extends Fragment {
         cardAddGeofence.setVisibility(
                 "geofence".equals(currentTab) ? View.VISIBLE : View.GONE);
     }
-
-    // ══════════════════════════════════════════════════════
-    //   AI PRIORITY
-    // ══════════════════════════════════════════════════════
 
     private void setupAIPriorityButton() {
         if (cardAIPriority == null) return;
@@ -275,9 +309,9 @@ public class HomeFragment extends Fragment {
             tvAIPriorityLabel.setText("🧠 AI Sorted");
         } else {
             cardAIPriority.setCardBackgroundColor(
-                    Color.parseColor("#0D0D22"));
-            cardAIPriority.setStrokeColor(Color.parseColor("#2A3A7E"));
-            tvAIPriorityLabel.setTextColor(Color.parseColor("#8899CC"));
+                    Color.parseColor("#1A0D15"));
+            cardAIPriority.setStrokeColor(Color.parseColor("#331A25"));
+            tvAIPriorityLabel.setTextColor(Color.parseColor("#FF88AA"));
             tvAIPriorityLabel.setText("🧠 AI Priority");
         }
     }
@@ -324,10 +358,6 @@ public class HomeFragment extends Fragment {
         }
         return (cal.getTimeInMillis() - now) / 60000L;
     }
-
-    // ══════════════════════════════════════════════════════
-    //   LOAD DATA
-    // ══════════════════════════════════════════════════════
 
     private void loadDataForCurrentTab() {
         if (!isAdded()) return;
@@ -377,10 +407,6 @@ public class HomeFragment extends Fragment {
                 break;
         }
     }
-
-    // ══════════════════════════════════════════════════════
-    //   OBSERVE PROGRESS AND TIMER
-    // ══════════════════════════════════════════════════════
 
     private void observeProgressAndTimer() {
         FocusDatabase.getInstance(getContext()).actionDao()
@@ -471,10 +497,6 @@ public class HomeFragment extends Fragment {
                 });
     }
 
-    // ══════════════════════════════════════════════════════
-    //   AUTO-ROLLOVER
-    // ══════════════════════════════════════════════════════
-
     private void runAutoRolloverIfEnabled() {
         android.content.SharedPreferences prefs = requireContext()
                 .getSharedPreferences("AppPrefs",
@@ -535,10 +557,6 @@ public class HomeFragment extends Fragment {
         });
     }
 
-    // ══════════════════════════════════════════════════════
-    //   XP SYSTEM
-    // ══════════════════════════════════════════════════════
-
     private void handleXPResult(XPManager.XPResult result) {
         if (result == null || !isAdded()) return;
         showXPSnackbar(result.xpEarned);
@@ -579,17 +597,17 @@ public class HomeFragment extends Fragment {
         if (tvXPNumbers != null)
             tvXPNumbers.setText(inLevel + " / " + needed + " XP");
         if (tvStreakValue != null)
-            tvStreakValue.setText("🔥 " + streak); // Changed based on new UI format
+            tvStreakValue.setText("🔥 " + streak);
         if (tvTotalXP != null)
             tvTotalXP.setText(totalXP + " XP total");
 
         animateXPBar(progress);
 
         if (cardXP != null)
-            cardXP.animate().scaleX(1.02f).scaleY(1.02f).setDuration(100)
+            cardXP.animate().scaleX(1.02f).scaleY(1.02f).setDuration(150)
                     .withEndAction(() -> {
                         if (isAdded()) cardXP.animate()
-                                .scaleX(1f).scaleY(1f).setDuration(180)
+                                .scaleX(1f).scaleY(1f).setDuration(300)
                                 .setInterpolator(new OvershootInterpolator(2f))
                                 .start();
                     }).start();
@@ -607,7 +625,7 @@ public class HomeFragment extends Fragment {
                     (int)(parentWidth * Math.min(targetProgress, 1f));
 
             ValueAnimator fillAnim = ValueAnimator.ofInt(0, targetWidth);
-            fillAnim.setDuration(900);
+            fillAnim.setDuration(1200);
             fillAnim.setInterpolator(new DecelerateInterpolator(1.5f));
             fillAnim.addUpdateListener(a -> {
                 if (!isAdded()) return;
@@ -623,8 +641,8 @@ public class HomeFragment extends Fragment {
                 viewXPShimmer.setVisibility(View.VISIBLE);
                 ValueAnimator shimAnim =
                         ValueAnimator.ofFloat(-50f, targetWidth + 50f);
-                shimAnim.setDuration(900);
-                shimAnim.setStartDelay(700);
+                shimAnim.setDuration(1200);
+                shimAnim.setStartDelay(800);
                 shimAnim.setInterpolator(new LinearInterpolator());
                 shimAnim.addUpdateListener(a -> {
                     if (isAdded() && viewXPShimmer != null)
@@ -683,76 +701,122 @@ public class HomeFragment extends Fragment {
     }
 
     // ══════════════════════════════════════════════════════
-    //   ENTRANCE ANIMATIONS
+    //   FIXED: SAFE CASCADING ENTRANCE (No crashes)
     // ══════════════════════════════════════════════════════
-
     private void playEntranceAnimations() {
-        if (!isAdded()) return;
+        if (!isAdded() || getView() == null) return;
 
-        // 1. Unified Hero card slides up from below
-        if (cardGreeting != null) {
-            cardGreeting.setAlpha(0f);
-            cardGreeting.setTranslationY(80f);
-            cardGreeting.animate()
-                    .alpha(1f).translationY(0f)
-                    .setDuration(520).setStartDelay(60)
-                    .setInterpolator(new DecelerateInterpolator(2.2f))
-                    .start();
+        View root = getView();
+
+        List<View> cascadeViews = new ArrayList<>();
+
+        if (cardGreeting != null) cascadeViews.add(cardGreeting);
+
+        // Safely extract the wrappers without crashing
+        View searchBar = root.findViewById(R.id.etSearch);
+        if (searchBar != null && searchBar.getParent() != null && searchBar.getParent().getParent() instanceof View) {
+            cascadeViews.add((View) searchBar.getParent().getParent());
         }
 
-        // 2. Progress ring animates from 0 after card appears
+        View routinesTab = root.findViewById(R.id.tvTabRoutines);
+        if (routinesTab != null && routinesTab.getParent() != null && routinesTab.getParent().getParent() instanceof View) {
+            cascadeViews.add((View) routinesTab.getParent().getParent());
+        }
+
+        if (cardAIPriority != null && cardAIPriority.getParent() instanceof View) {
+            cascadeViews.add((View) cardAIPriority.getParent());
+        }
+
+        View rv = root.findViewById(R.id.rvTasks);
+        if (rv != null) cascadeViews.add(rv);
+
+        AnimatorSet stagedSet = new AnimatorSet();
+        List<Animator> stagedAnims = new ArrayList<>();
+
+        for (int i = 0; i < cascadeViews.size(); i++) {
+            View v = cascadeViews.get(i);
+            if (v == null) continue;
+
+            v.setAlpha(0f);
+            v.setTranslationY(100f);
+
+            ObjectAnimator enterY = ObjectAnimator.ofFloat(v, "translationY", 100f, 0f);
+            ObjectAnimator enterA = ObjectAnimator.ofFloat(v, "alpha", 0f, 1f);
+
+            enterY.setDuration(800);
+            enterA.setDuration(800);
+            enterY.setInterpolator(new DecelerateInterpolator(2.5f));
+
+            enterY.setStartDelay(100L * i);
+            enterA.setStartDelay(100L * i);
+
+            stagedAnims.add(enterY);
+            stagedAnims.add(enterA);
+        }
+
+        stagedSet.playTogether(stagedAnims);
+        stagedSet.start();
+
         if (progressBar != null) {
             progressBar.setProgress(0);
         }
     }
 
-    // ══════════════════════════════════════════════════════
-    //   PROGRESS UI
-    // ══════════════════════════════════════════════════════
-
     private void updateProgressUI(int completed, int total) {
         int target = (total == 0) ? 0 : (completed * 100) / total;
 
-        // ── Ring: ObjectAnimator sweeps the arc ───────────
         if (progressBar != null) {
             ObjectAnimator ringAnim = ObjectAnimator.ofInt(
                     progressBar, "progress",
-                    0, target);
-            ringAnim.setDuration(1200);
-            ringAnim.setStartDelay(300);
-            ringAnim.setInterpolator(new AccelerateDecelerateInterpolator());
+                    currentAnimatedProgress, target);
+            ringAnim.setDuration(2000);
+            ringAnim.setStartDelay(100);
+            ringAnim.setInterpolator(new OvershootInterpolator(1.2f));
             ringAnim.start();
         }
 
-        // ── % text: ValueAnimator counts up in sync ───────
-        ValueAnimator counter = ValueAnimator.ofInt(0, target);
-        counter.setDuration(1200);
-        counter.setStartDelay(300);
-        counter.setInterpolator(new AccelerateDecelerateInterpolator());
+        ValueAnimator counter = ValueAnimator.ofInt(currentAnimatedProgress, target);
+        counter.setDuration(1800);
+        counter.setStartDelay(100);
+        counter.setInterpolator(new DecelerateInterpolator(1.5f));
         counter.addUpdateListener(a -> {
             if (tvProgressPercent != null && isAdded())
                 tvProgressPercent.setText(a.getAnimatedValue() + "%");
         });
         counter.start();
+
+        if (target > currentAnimatedProgress && tvProgressPercent != null) {
+            tvProgressPercent.animate()
+                    .scaleX(1.35f).scaleY(1.35f)
+                    .setDuration(300).setStartDelay(200)
+                    .withEndAction(() -> {
+                        if (isAdded() && tvProgressPercent != null) {
+                            tvProgressPercent.animate()
+                                    .scaleX(1f).scaleY(1f)
+                                    .setDuration(500)
+                                    .setInterpolator(new OvershootInterpolator(2.5f))
+                                    .start();
+                        }
+                    }).start();
+        }
+
         currentAnimatedProgress = target;
 
-        // ── "X of Y done" ─────────────────────────────────
         if (tvProgressSubtitle != null)
             tvProgressSubtitle.setText(completed + " of " + total + " done");
 
-        // ── Motivation text cross-fades ───────────────────
         String motivation = target == 100 ? "All Done! 🎉"
                 : target >= 50 ? "Almost there! 🔥"
                 : target > 0   ? "Keep going! 💪"
                 : "Ready to Flow?";
         if (tvMotivation != null) {
             final String m = motivation;
-            tvMotivation.animate().alpha(0f).setDuration(150)
+            tvMotivation.animate().alpha(0f).setDuration(250)
                     .withEndAction(() -> {
                         if (!isAdded()) return;
                         tvMotivation.setText(m);
                         tvMotivation.animate().alpha(1f)
-                                .setDuration(280).start();
+                                .setDuration(400).start();
                     }).start();
         }
 
@@ -765,10 +829,6 @@ public class HomeFragment extends Fragment {
         lastTotalCount     = total;
     }
 
-    // ══════════════════════════════════════════════════════
-    //   TAB SWITCHING
-    // ══════════════════════════════════════════════════════
-
     private void switchTab(String tabType) {
         currentTab   = tabType;
         aiSortActive = false;
@@ -779,50 +839,43 @@ public class HomeFragment extends Fragment {
         int active   = Color.parseColor("#FFFFFF");
         int inactive = Color.parseColor("#556688");
 
-        tvTabRoutines.setTextColor(
-                "routines".equals(tabType) ? active : inactive);
-        tvTabTasks.setTextColor(
-                "tasks".equals(tabType) ? active : inactive);
-        tvTabPending.setTextColor(
-                "pending".equals(tabType) ? active : inactive);
-        if (tvTabGeo != null)
-            tvTabGeo.setTextColor(
-                    "geofence".equals(tabType) ? active : inactive);
+        tvTabRoutines.setTextColor("routines".equals(tabType) ? active : inactive);
+        tvTabTasks.setTextColor("tasks".equals(tabType) ? active : inactive);
+        tvTabPending.setTextColor("pending".equals(tabType) ? active : inactive);
+        if (tvTabGeo != null) tvTabGeo.setTextColor("geofence".equals(tabType) ? active : inactive);
 
         tvTabRoutines.setBackground("routines".equals(tabType)
-                ? ContextCompat.getDrawable(requireContext(),
-                R.drawable.tab_selected_bg) : null);
+                ? ContextCompat.getDrawable(requireContext(), R.drawable.tab_selected_glow) : null);
         tvTabTasks.setBackground("tasks".equals(tabType)
-                ? ContextCompat.getDrawable(requireContext(),
-                R.drawable.tab_selected_bg) : null);
+                ? ContextCompat.getDrawable(requireContext(), R.drawable.tab_selected_glow) : null);
         tvTabPending.setBackground("pending".equals(tabType)
-                ? ContextCompat.getDrawable(requireContext(),
-                R.drawable.tab_selected_bg) : null);
-        if (tvTabGeo != null)
-            tvTabGeo.setBackground("geofence".equals(tabType)
-                    ? ContextCompat.getDrawable(requireContext(),
-                    R.drawable.tab_selected_bg) : null);
+                ? ContextCompat.getDrawable(requireContext(), R.drawable.tab_selected_glow) : null);
+        if (tvTabGeo != null) tvTabGeo.setBackground("geofence".equals(tabType)
+                ? ContextCompat.getDrawable(requireContext(), R.drawable.tab_selected_glow) : null);
+
+        tvTabRoutines.setElevation("routines".equals(tabType) ? 8f : 0f);
+        tvTabTasks.setElevation("tasks".equals(tabType) ? 8f : 0f);
+        tvTabPending.setElevation("pending".equals(tabType) ? 8f : 0f);
+        if (tvTabGeo != null) tvTabGeo.setElevation("geofence".equals(tabType) ? 8f : 0f);
 
         TextView sel = "routines".equals(tabType) ? tvTabRoutines
                 : "tasks".equals(tabType)    ? tvTabTasks
                 : "pending".equals(tabType)  ? tvTabPending
                 : tvTabGeo;
-        if (sel != null)
-            sel.animate().scaleX(1.08f).scaleY(1.08f).setDuration(100)
+
+        if (sel != null) {
+            sel.animate().scaleX(0.85f).scaleY(0.85f).setDuration(250)
+                    .setInterpolator(new DecelerateInterpolator())
                     .withEndAction(() -> {
                         if (isAdded()) sel.animate()
-                                .scaleX(1f).scaleY(1f).setDuration(200)
-                                .setInterpolator(
-                                        new OvershootInterpolator(2.5f))
+                                .scaleX(1f).scaleY(1f).setDuration(500)
+                                .setInterpolator(new OvershootInterpolator(3.0f))
                                 .start();
                     }).start();
+        }
 
         loadDataForCurrentTab();
     }
-
-    // ══════════════════════════════════════════════════════
-    //   SWIPE GESTURES
-    // ══════════════════════════════════════════════════════
 
     private void setupSwipeGestures(RecyclerView rv) {
         new ItemTouchHelper(new ItemTouchHelper.SimpleCallback(
@@ -930,10 +983,6 @@ public class HomeFragment extends Fragment {
         }).attachToRecyclerView(rv);
     }
 
-    // ══════════════════════════════════════════════════════
-    //   ROLLOVER BANNER
-    // ══════════════════════════════════════════════════════
-
     private void showRolloverBanner(int count) {
         if (!isAdded() || cardRolloverBanner == null) return;
         tvRolloverTitle.setText(count + " Task"
@@ -944,7 +993,7 @@ public class HomeFragment extends Fragment {
         cardRolloverBanner.setAlpha(0f);
         cardRolloverBanner.setTranslationY(-60f);
         cardRolloverBanner.animate().alpha(1f).translationY(0f)
-                .setDuration(500)
+                .setDuration(800)
                 .setInterpolator(new OvershootInterpolator(1.2f)).start();
         if (ivDismissRollover != null) {
             ivDismissRollover.setOnClickListener(v -> dismissRolloverBanner());
@@ -956,7 +1005,7 @@ public class HomeFragment extends Fragment {
     private void dismissRolloverBanner() {
         if (cardRolloverBanner == null) return;
         cardRolloverBanner.animate()
-                .alpha(0f).translationY(-40f).setDuration(350)
+                .alpha(0f).translationY(-40f).setDuration(500)
                 .withEndAction(() -> {
                     if (cardRolloverBanner != null) {
                         cardRolloverBanner.setVisibility(View.GONE);
@@ -965,35 +1014,46 @@ public class HomeFragment extends Fragment {
                 }).start();
     }
 
-    // ══════════════════════════════════════════════════════
-    //   SEARCH BAR
-    // ══════════════════════════════════════════════════════
-
     private void setupSearchBar() {
         etSearch.addTextChangedListener(new TextWatcher() {
-            @Override public void beforeTextChanged(
-                    CharSequence s, int st, int c, int a) {}
-            @Override public void onTextChanged(
-                    CharSequence s, int st, int b, int c) {
+            @Override public void beforeTextChanged(CharSequence s, int st, int c, int a) {}
+            @Override public void onTextChanged(CharSequence s, int st, int b, int c) {
                 if (ivClearSearch != null) {
-                    ivClearSearch.setVisibility(
-                            s.length() > 0 ? View.VISIBLE : View.GONE);
+                    ivClearSearch.setVisibility(s.length() > 0 ? View.VISIBLE : View.GONE);
                 }
                 adapter.filter(s.toString());
             }
             @Override public void afterTextChanged(Editable s) {}
         });
+
         if (ivClearSearch != null) {
             ivClearSearch.setOnClickListener(v -> {
                 etSearch.setText("");
                 etSearch.clearFocus();
             });
         }
-    }
 
-    // ══════════════════════════════════════════════════════
-    //   GREETING CARD
-    // ══════════════════════════════════════════════════════
+        etSearch.setOnFocusChangeListener((v, hasFocus) -> {
+            View searchCard = (View) etSearch.getParent().getParent();
+            if (searchCard != null) {
+                if (hasFocus) {
+                    searchCard.animate()
+                            .scaleX(1.03f).scaleY(1.03f)
+                            .translationZ(8f)
+                            .setDuration(400)
+                            .setInterpolator(new OvershootInterpolator(1.5f))
+                            .start();
+                } else {
+                    searchCard.animate()
+                            .scaleX(1f).scaleY(1f)
+                            .translationZ(0f)
+                            .setDuration(400)
+                            .setInterpolator(new DecelerateInterpolator())
+                            .start();
+                }
+            }
+        });
+    }
 
     private void setupGreetingCard() {
         int h = Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
@@ -1031,10 +1091,6 @@ public class HomeFragment extends Fragment {
         }
     }
 
-    // ══════════════════════════════════════════════════════
-    //   CONFETTI
-    // ══════════════════════════════════════════════════════
-
     private void launchConfetti() {
         if (konfettiView == null) return;
         Party party = new PartyFactory(
@@ -1048,10 +1104,6 @@ public class HomeFragment extends Fragment {
                 .build();
         konfettiView.start(party);
     }
-
-    // ══════════════════════════════════════════════════════
-    //   TIMER
-    // ══════════════════════════════════════════════════════
 
     private void startLiveTimer() {
         if (timerRunnable != null)
@@ -1113,10 +1165,6 @@ public class HomeFragment extends Fragment {
         }
         return cal.getTimeInMillis();
     }
-
-    // ══════════════════════════════════════════════════════
-    //   HELPERS
-    // ══════════════════════════════════════════════════════
 
     private int getDayOfWeekInt(String day) {
         if (day == null) return Calendar.MONDAY;
@@ -1207,7 +1255,12 @@ public class HomeFragment extends Fragment {
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        if (timerRunnable != null)
+        if (timerRunnable != null) {
             timerHandler.removeCallbacks(timerRunnable);
+        }
+        for (Animator anim : backgroundAnimators) {
+            if (anim != null) anim.cancel();
+        }
+        backgroundAnimators.clear();
     }
 }

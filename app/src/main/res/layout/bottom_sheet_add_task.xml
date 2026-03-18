@@ -1,61 +1,64 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/bottomSheetRoot"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@drawable/bottom_sheet_bg"
+    android:background="#0A0A15"
     android:orientation="vertical"
-    android:padding="24dp">
+    android:paddingTop="12dp"
+    android:paddingBottom="32dp"
+    android:paddingHorizontal="24dp">
 
-    <!-- Handle -->
     <View
-        android:layout_width="40dp"
-        android:layout_height="4dp"
+        android:layout_width="48dp"
+        android:layout_height="5dp"
         android:layout_gravity="center"
         android:layout_marginBottom="24dp"
-        android:background="#1A2244"/>
+        android:background="@drawable/circle_bg_light"
+        android:backgroundTint="#334263EB"/>
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="20dp"
+        android:layout_marginBottom="24dp"
         android:text="Create New Flow"
-        android:textColor="?android:attr/textColorPrimary"
-        android:textSize="22sp"
+        android:textColor="#FFFFFF"
+        android:textSize="24sp"
         android:textStyle="bold"
         android:letterSpacing="-0.02"/>
 
-    <!-- Title -->
     <com.google.android.material.textfield.TextInputLayout
         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="6dp"
+        android:layout_marginBottom="12dp"
+        app:boxBackgroundColor="#0D1533"
         app:boxCornerRadiusBottomEnd="16dp"
         app:boxCornerRadiusBottomStart="16dp"
         app:boxCornerRadiusTopEnd="16dp"
         app:boxCornerRadiusTopStart="16dp"
         app:boxStrokeColor="#4263EB"
-        app:hintTextColor="?android:attr/textColorSecondary">
+        app:boxStrokeWidth="1.5dp"
+        app:hintTextColor="#667799">
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/etTaskTitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="What do you want to focus on?"
-            android:textColor="?android:attr/textColorPrimary"
-            android:textColorHint="?android:attr/textColorSecondary"
+            android:textColor="#EEEEFF"
+            android:textColorHint="#556688"
             android:inputType="textCapSentences"
             android:padding="16dp"/>
     </com.google.android.material.textfield.TextInputLayout>
 
-    <!-- AI Category chip -->
     <LinearLayout
         android:id="@+id/layoutCategoryRow"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:layout_marginBottom="10dp"
+        android:layout_marginBottom="12dp"
         android:visibility="gone">
 
         <com.google.android.material.card.MaterialCardView
@@ -66,8 +69,8 @@
             android:focusable="true"
             app:cardCornerRadius="20dp"
             app:cardElevation="0dp"
-            app:strokeWidth="1dp"
-            app:strokeColor="#1A2244"
+            app:strokeWidth="1.5dp"
+            app:strokeColor="#334263EB"
             app:cardBackgroundColor="#0D1A33">
             <LinearLayout
                 android:layout_width="wrap_content"
@@ -88,7 +91,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="6dp"
                     android:text="General"
-                    android:textColor="#445588"
+                    android:textColor="#88AADD"
                     android:textSize="12sp"
                     android:textStyle="bold"/>
                 <TextView
@@ -96,7 +99,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="5dp"
                     android:text="▾"
-                    android:textColor="#334466"
+                    android:textColor="#556688"
                     android:textSize="10sp"/>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
@@ -106,72 +109,73 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="10dp"
             android:text="auto-detected  ·  tap to change"
-            android:textColor="#223355"
+            android:textColor="#445588"
             android:textSize="10sp"/>
     </LinearLayout>
 
-    <!-- Description -->
     <com.google.android.material.textfield.TextInputLayout
         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="12dp"
+        app:boxBackgroundColor="#0D1533"
         app:boxCornerRadiusBottomEnd="16dp"
         app:boxCornerRadiusBottomStart="16dp"
         app:boxCornerRadiusTopEnd="16dp"
         app:boxCornerRadiusTopStart="16dp"
         app:boxStrokeColor="#4263EB"
-        app:hintTextColor="?android:attr/textColorSecondary">
+        app:boxStrokeWidth="1.5dp"
+        app:hintTextColor="#667799">
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/etDescription"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="Notes / Links (Optional)"
-            android:textColor="?android:attr/textColorPrimary"
-            android:textColorHint="?android:attr/textColorSecondary"
+            android:textColor="#EEEEFF"
+            android:textColorHint="#556688"
             android:inputType="textMultiLine"
             android:minLines="2"
             android:gravity="top"
             android:padding="16dp"/>
     </com.google.android.material.textfield.TextInputLayout>
 
-    <!-- Duration -->
     <com.google.android.material.textfield.TextInputLayout
         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="6dp"
+        android:layout_marginBottom="12dp"
+        app:boxBackgroundColor="#0D1533"
         app:boxCornerRadiusBottomEnd="16dp"
         app:boxCornerRadiusBottomStart="16dp"
         app:boxCornerRadiusTopEnd="16dp"
         app:boxCornerRadiusTopStart="16dp"
         app:boxStrokeColor="#4263EB"
-        app:hintTextColor="?android:attr/textColorSecondary">
+        app:boxStrokeWidth="1.5dp"
+        app:hintTextColor="#667799">
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/etDuration"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="Duration (in minutes, e.g. 30)"
-            android:textColor="?android:attr/textColorPrimary"
-            android:textColorHint="?android:attr/textColorSecondary"
+            android:textColor="#EEEEFF"
+            android:textColorHint="#556688"
             android:inputType="number"
             android:padding="16dp"/>
     </com.google.android.material.textfield.TextInputLayout>
 
-    <!-- AI Duration suggestion -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/cardDurationSuggestion"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="14dp"
+        android:layout_marginBottom="16dp"
         android:clickable="true"
         android:focusable="true"
         android:visibility="gone"
         app:cardCornerRadius="12dp"
         app:cardElevation="0dp"
-        app:strokeWidth="1dp"
-        app:strokeColor="#0D3A1A"
-        app:cardBackgroundColor="#061A10">
+        app:strokeWidth="1.5dp"
+        app:strokeColor="#20C997"
+        app:cardBackgroundColor="#0D2A1A">
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -192,49 +196,62 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
                 android:text="Tap to use"
-                android:textColor="#0D5C3A"
+                android:textColor="#1A5A3A"
                 android:textSize="10sp"/>
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
-    <!-- Type selector -->
-    <LinearLayout
+    <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="20dp"
-        android:orientation="horizontal">
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnTypeRoutine"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-            android:layout_width="0dp"
-            android:layout_height="52dp"
-            android:layout_marginEnd="8dp"
-            android:layout_weight="1"
-            android:text="Daily Routine"
-            android:textSize="13sp"
-            app:cornerRadius="16dp"
-            app:strokeColor="#4263EB"/>
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnTypeTask"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-            android:layout_width="0dp"
-            android:layout_height="52dp"
-            android:layout_marginStart="8dp"
-            android:layout_weight="1"
-            android:text="One-Time Task"
-            android:textSize="13sp"
-            android:textColor="?android:attr/textColorSecondary"
-            app:cornerRadius="16dp"
-            app:strokeColor="?android:attr/textColorTertiary"/>
-    </LinearLayout>
+        android:layout_height="52dp"
+        android:layout_marginBottom="16dp"
+        app:cardCornerRadius="26dp"
+        app:cardElevation="0dp"
+        app:strokeColor="#1A2244"
+        app:strokeWidth="1.5dp"
+        app:cardBackgroundColor="#080814">
 
-    <!-- Time Picker — always shown -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="horizontal"
+            android:padding="4dp">
+
+            <TextView
+                android:id="@+id/btnTypeRoutine"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="ROUTINE"
+                android:textColor="#FFFFFF"
+                android:textSize="11sp"
+                android:letterSpacing="0.08"
+                android:textStyle="bold"
+                android:background="@drawable/tab_selected_glow"/>
+
+            <TextView
+                android:id="@+id/btnTypeTask"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="TASK"
+                android:textColor="#556688"
+                android:textSize="11sp"
+                android:letterSpacing="0.08"
+                android:textStyle="bold"
+                android:background="@android:color/transparent"/>
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
     <LinearLayout
         android:id="@+id/btnPickTime"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="10dp"
+        android:layout_marginBottom="12dp"
         android:background="@drawable/rounded_input_bg"
+        android:backgroundTint="#0D1533"
         android:gravity="center_vertical"
         android:padding="16dp"
         android:clickable="true"
@@ -250,28 +267,25 @@
             android:layout_marginStart="16dp"
             android:layout_weight="1"
             android:text="Time"
-            android:textColor="?android:attr/textColorSecondary"
+            android:textColor="#88AADD"
             android:textSize="15sp"/>
         <TextView
             android:id="@+id/tvSelectedTime"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="10:00 AM"
-            android:textColor="?android:attr/textColorPrimary"
+            android:textColor="#FFFFFF"
             android:textSize="15sp"
             android:textStyle="bold"/>
     </LinearLayout>
 
-    <!-- ══════════════════════════════════════════════════ -->
-    <!--   DATE PICKER — only shown for TASKS               -->
-    <!--   Visibility controlled in updateTypeSelection()   -->
-    <!-- ══════════════════════════════════════════════════ -->
     <LinearLayout
         android:id="@+id/btnPickDate"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="10dp"
+        android:layout_marginBottom="12dp"
         android:background="@drawable/rounded_input_bg"
+        android:backgroundTint="#0D1533"
         android:gravity="center_vertical"
         android:padding="16dp"
         android:clickable="true"
@@ -288,28 +302,25 @@
             android:layout_marginStart="16dp"
             android:layout_weight="1"
             android:text="Date"
-            android:textColor="?android:attr/textColorSecondary"
+            android:textColor="#88AADD"
             android:textSize="15sp"/>
         <TextView
             android:id="@+id/tvSelectedDate"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Today"
-            android:textColor="?android:attr/textColorPrimary"
+            android:textColor="#FFFFFF"
             android:textSize="15sp"
             android:textStyle="bold"/>
     </LinearLayout>
 
-    <!-- ══════════════════════════════════════════════════ -->
-    <!--   REPEAT PICKER — only shown for ROUTINES          -->
-    <!--   Visibility controlled in updateTypeSelection()   -->
-    <!-- ══════════════════════════════════════════════════ -->
     <LinearLayout
         android:id="@+id/btnPickRepeat"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="28dp"
+        android:layout_marginBottom="32dp"
         android:background="@drawable/rounded_input_bg"
+        android:backgroundTint="#0D1533"
         android:gravity="center_vertical"
         android:padding="16dp"
         android:clickable="true"
@@ -326,40 +337,40 @@
             android:layout_marginStart="16dp"
             android:layout_weight="1"
             android:text="Repeat"
-            android:textColor="?android:attr/textColorSecondary"
+            android:textColor="#88AADD"
             android:textSize="15sp"/>
         <TextView
             android:id="@+id/tvSelectedRepeat"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="None"
-            android:textColor="?android:attr/textColorPrimary"
+            android:textColor="#FFFFFF"
             android:textSize="15sp"
             android:textStyle="bold"/>
     </LinearLayout>
 
-    <!-- Save -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnSave"
         android:layout_width="match_parent"
-        android:layout_height="60dp"
+        android:layout_height="64dp"
         android:text="Save to Planner"
-        android:textSize="15sp"
+        android:textColor="#FFFFFF"
+        android:textSize="16sp"
         android:letterSpacing="0.04"
         android:textStyle="bold"
-        app:backgroundTint="#4263EB"
-        app:cornerRadius="20dp"
+        android:background="@drawable/tab_selected_glow"
+        app:backgroundTint="@null"
+        app:elevation="8dp"
         app:rippleColor="#40FFFFFF"/>
 
-    <!-- Cancel -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnCancel"
         style="@style/Widget.MaterialComponents.Button.TextButton"
         android:layout_width="match_parent"
         android:layout_height="50dp"
-        android:layout_marginTop="6dp"
+        android:layout_marginTop="8dp"
         android:text="Cancel"
-        android:textColor="?android:attr/textColorSecondary"
+        android:textColor="#556688"
         android:textSize="14sp"/>
 
 </LinearLayout>

@@ -9,6 +9,9 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Build;
 import androidx.core.app.NotificationCompat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 public class AlarmReceiver extends BroadcastReceiver {
 
@@ -60,6 +63,9 @@ public class AlarmReceiver extends BroadcastReceiver {
                 context, 0, tapIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
+        // Get exact time for beautiful logging
+        String currentTime = new SimpleDateFormat("hh:mm a", Locale.getDefault()).format(new Date());
+
         // ════════════════════════════════════════════════
         //   PRE-WARNING (1 hour before)
         // ════════════════════════════════════════════════
@@ -78,10 +84,10 @@ public class AlarmReceiver extends BroadcastReceiver {
                                     : NotificationCompat.DEFAULT_SOUND);
             nm.notify((int) System.currentTimeMillis(), b.build());
 
-            // ── Log to in-app notifications ───────────────
+            // ── Single clean pre-warning log ───────────────
             NotificationHelper.add(context,
-                    "⏰ Starting in 1 hour: " + taskTitle,
-                    body, "alarm");
+                    taskTitle,
+                    "Starts in 1 hour • Reminder sent at " + currentTime, "alarm");
             return;
         }
 
@@ -117,9 +123,9 @@ public class AlarmReceiver extends BroadcastReceiver {
             nm.notify((int) System.currentTimeMillis(), b.build());
         }
 
-        // ── Log every alarm trigger to in-app notifications ─
+        // ── Single, elegant log to in-app notifications ─
         NotificationHelper.add(context,
-                "⏰ Alarm: " + taskTitle,
-                "Your flow \"" + taskTitle + "\" is starting now!", "alarm");
+                taskTitle,
+                "It's time to focus! • Ringing at " + currentTime, "alarm");
     }
 }

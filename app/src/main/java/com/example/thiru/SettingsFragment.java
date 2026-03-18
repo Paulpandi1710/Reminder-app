@@ -1,5 +1,7 @@
 package com.example.thiru;
 
+import android.animation.ObjectAnimator;
+import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -15,7 +17,6 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewTreeObserver;
 import android.view.ViewGroup;
-import android.animation.ValueAnimator;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -34,23 +35,19 @@ public class SettingsFragment extends Fragment {
 
     private static final int RINGTONE_PICKER_CODE = 999;
 
-    // ── Separate channel IDs — each toggle owns its own ───
     private static final String CH_GENERAL = "focusflow_general_v1";
     private static final String CH_ALARMS  = "focusflow_alarms_v5";
     private static final String CH_MASTER  = "focusflow_master_alarm";
 
-    // ── Views ─────────────────────────────────────────────
     private TextView tvRingtoneName, tvProfileName;
     private ImageView imgProfile;
     private SharedPreferences prefs;
 
-    // ── XP card views ─────────────────────────────────────
     private TextView tvSettingsXPBadge, tvSettingsXPTitle, tvSettingsXPLevel;
     private TextView tvSettingsXPNumbers, tvSettingsStreak, tvSettingsTotalXP;
     private TextView tvSettingsNextLevel;
     private View viewSettingsXPFill;
 
-    // ── Photo picker ──────────────────────────────────────
     private final ActivityResultLauncher<PickVisualMediaRequest> pickMedia =
             registerForActivityResult(
                     new ActivityResultContracts.PickVisualMedia(), uri -> {
@@ -75,7 +72,6 @@ public class SettingsFragment extends Fragment {
         prefs = requireContext().getSharedPreferences(
                 "AppPrefs", Context.MODE_PRIVATE);
 
-        // ── Bind views ────────────────────────────────────
         tvRingtoneName       = view.findViewById(R.id.tvRingtoneName);
         tvProfileName        = view.findViewById(R.id.tvProfileName);
         imgProfile           = view.findViewById(R.id.imgProfile);
@@ -88,16 +84,11 @@ public class SettingsFragment extends Fragment {
         tvSettingsNextLevel  = view.findViewById(R.id.tvSettingsNextLevel);
         viewSettingsXPFill   = view.findViewById(R.id.viewSettingsXPFill);
 
-        SwitchMaterial switchNotifications =
-                view.findViewById(R.id.switchNotifications);
-        SwitchMaterial switchAlarm =
-                view.findViewById(R.id.switchAlarm);
-        SwitchMaterial switchVibrate =
-                view.findViewById(R.id.switchVibrate);
-        SwitchMaterial switchAutoRollover =
-                view.findViewById(R.id.switchAutoRollover);
+        SwitchMaterial switchNotifications = view.findViewById(R.id.switchNotifications);
+        SwitchMaterial switchAlarm         = view.findViewById(R.id.switchAlarm);
+        SwitchMaterial switchVibrate       = view.findViewById(R.id.switchVibrate);
+        SwitchMaterial switchAutoRollover  = view.findViewById(R.id.switchAutoRollover);
 
-        // ── Load profile data ─────────────────────────────
         tvProfileName.setText(prefs.getString("user_name", "Focus Champion"));
         String savedImage = prefs.getString("profile_image", null);
         if (savedImage != null) {
@@ -105,17 +96,14 @@ public class SettingsFragment extends Fragment {
             catch (Exception ignored) {}
         }
 
-        // ── Load switch states from prefs ─────────────────
         loadCurrentRingtoneName();
         switchNotifications.setChecked(prefs.getBoolean("pushNotifs", true));
         switchAlarm.setChecked(prefs.getBoolean("enable_alarm_screen", true));
         switchVibrate.setChecked(prefs.getBoolean("enable_vibration", true));
         switchAutoRollover.setChecked(prefs.getBoolean("auto_rollover", true));
 
-        // ── Load XP card ──────────────────────────────────
         refreshXPCard();
 
-        // ── Profile photo picker ──────────────────────────
         view.findViewById(R.id.btnEditProfile).setOnClickListener(v ->
                 pickMedia.launch(new PickVisualMediaRequest.Builder()
                         .setMediaType(
@@ -123,7 +111,6 @@ public class SettingsFragment extends Fragment {
                                         .ImageOnly.INSTANCE)
                         .build()));
 
-        // ── Profile name edit (tap) ───────────────────────
         tvProfileName.setOnClickListener(v -> {
             EditText input = new EditText(getContext());
             input.setText(tvProfileName.getText().toString());
@@ -142,28 +129,14 @@ public class SettingsFragment extends Fragment {
                     .show();
         });
 
-        // ══════════════════════════════════════════════════
-        //   TOGGLE LISTENERS — EACH INDEPENDENT
-        //
-        //   switchNotifications:
-        //     Saves pushNotifs pref.
-        //     Updates general notification channel importance.
-        //     Does NOT affect alarm screen or vibration.
-        //
-        //   switchAlarm:
-        //     Saves enable_alarm_screen pref ONLY.
-        //     Controls whether AlarmScreenActivity launches.
-        //     Does NOT touch any notification channel.
-        //
-        //   switchVibrate:
-        //     Saves enable_vibration pref.
-        //     Recreates alarm channels with new vibration setting.
-        //     Does NOT affect notifications toggle.
-        //
-        //   switchAutoRollover:
-        //     Saves auto_rollover pref ONLY.
-        //     No side effects.
-        // ══════════════════════════════════════════════════
+        View btnBack = view.findViewById(R.id.btnSettingsBack);
+        if (btnBack != null) {
+            btnBack.setOnClickListener(v -> {
+                if (isAdded() && getActivity() != null) {
+                    getActivity().getOnBackPressedDispatcher().onBackPressed();
+                }
+            });
+        }
 
         switchNotifications.setOnCheckedChangeListener((b, isOn) -> {
             prefs.edit().putBoolean("pushNotifs", isOn).apply();
@@ -182,7 +155,6 @@ public class SettingsFragment extends Fragment {
         switchAutoRollover.setOnCheckedChangeListener((b, isOn) ->
                 prefs.edit().putBoolean("auto_rollover", isOn).apply());
 
-        // ── Ringtone picker ───────────────────────────────
         view.findViewById(R.id.btnRingtonePicker).setOnClickListener(v -> {
             Intent intent = new Intent(RingtoneManager.ACTION_RINGTONE_PICKER);
             intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE,
@@ -192,7 +164,6 @@ public class SettingsFragment extends Fragment {
             startActivityForResult(intent, RINGTONE_PICKER_CODE);
         });
 
-        // ── Clear all data ────────────────────────────────
         view.findViewById(R.id.btnClearData).setOnClickListener(v ->
                 new AlertDialog.Builder(requireContext())
                         .setTitle("Factory Reset")
@@ -221,14 +192,13 @@ public class SettingsFragment extends Fragment {
                         .setNegativeButton("Cancel", null)
                         .show());
 
+        view.setTranslationY(100f);
+        view.setAlpha(0f);
+        view.animate().translationY(0f).alpha(1f)
+                .setDuration(600).setInterpolator(new DecelerateInterpolator(2f)).start();
+
         return view;
     }
-
-    // ══════════════════════════════════════════════════════
-    //   CHANNEL IMPORTANCE — for notifications toggle
-    //   Deletes and recreates channel with correct importance.
-    //   Android 8+ does not allow updating importance in-place.
-    // ══════════════════════════════════════════════════════
 
     private void updateChannelImportance(String channelId, boolean enabled) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
@@ -247,12 +217,6 @@ public class SettingsFragment extends Fragment {
             nm.createNotificationChannel(ch);
         } catch (Exception ignored) {}
     }
-
-    // ══════════════════════════════════════════════════════
-    //   CHANNEL VIBRATION — for vibrate toggle
-    //   Only recreates alarm channels, leaves others alone.
-    //   Preserves existing channel importance level.
-    // ══════════════════════════════════════════════════════
 
     private void updateChannelVibration(String channelId, boolean vibrate) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
@@ -280,10 +244,6 @@ public class SettingsFragment extends Fragment {
             nm.createNotificationChannel(ch);
         } catch (Exception ignored) {}
     }
-
-    // ══════════════════════════════════════════════════════
-    //   XP CARD REFRESH
-    // ══════════════════════════════════════════════════════
 
     private void refreshXPCard() {
         if (!isAdded() || tvSettingsXPTitle == null) return;
@@ -356,10 +316,6 @@ public class SettingsFragment extends Fragment {
                     });
         }
     }
-
-    // ══════════════════════════════════════════════════════
-    //   RINGTONE RESULT
-    // ══════════════════════════════════════════════════════
 
     @Override
     public void onActivityResult(int requestCode, int resultCode,
