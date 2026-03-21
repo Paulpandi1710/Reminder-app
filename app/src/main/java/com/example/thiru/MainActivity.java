@@ -32,7 +32,6 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        // ── MUST be before setContentView ─────────────────
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
@@ -111,9 +110,6 @@ public class MainActivity extends AppCompatActivity {
             return true;
         });
 
-        // ══════════════════════════════════════════════════════
-        //   SQUASH & STRETCH CLICK ANIMATION
-        // ══════════════════════════════════════════════════════
         fab.setOnClickListener(v -> {
             fab.animate().scaleX(0.85f).scaleY(0.85f).setDuration(150)
                     .setInterpolator(new DecelerateInterpolator())
@@ -159,6 +155,76 @@ public class MainActivity extends AppCompatActivity {
                         }
                     }
                 });
+
+        // ══════════════════════════════════════════════════════
+        //   DAILY LOGIN REWARD TRIGGER
+        // ══════════════════════════════════════════════════════
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+            XPManager.XPResult loginResult = XPManager.handleDailyLogin(this);
+            if (loginResult != null) {
+                showDailyLoginReward(loginResult.xpEarned);
+
+                // If they level up from just opening the app, celebrate!
+                if (loginResult.leveledUp) {
+                    new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                        LevelUpDialog.show(this, loginResult.newLevel, loginResult.newTitle, loginResult.newBadge, loginResult.xpEarned);
+                    }, 3500); // Wait for the banner to finish before showing the dialog
+                }
+            }
+        }, 1500); // 1.5s delay allows the home screen to finish its entrance animation first
+    }
+
+    // ── DYNAMIC GLASSMORPHISM BANNER BUILDER ──
+    private void showDailyLoginReward(int xpEarned) {
+        final android.view.ViewGroup root = findViewById(android.R.id.content);
+        if (root == null) return;
+
+        com.google.android.material.card.MaterialCardView card = new com.google.android.material.card.MaterialCardView(this);
+        android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
+        );
+        params.setMargins(dpToPx(16f), dpToPx(56f), dpToPx(16f), 0); // Just below status bar
+        card.setLayoutParams(params);
+        card.setRadius(dpToPx(20f));
+        card.setCardElevation(dpToPx(8f));
+        card.setCardBackgroundColor(android.graphics.Color.parseColor("#E60A1232")); // Deep dark blue glass
+        card.setStrokeWidth(dpToPx(1.5f));
+        card.setStrokeColor(android.graphics.Color.parseColor("#4263EB")); // Glowing blue border
+
+        android.widget.LinearLayout layout = new android.widget.LinearLayout(this);
+        layout.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+        layout.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        layout.setPadding(dpToPx(18f), dpToPx(16f), dpToPx(18f), dpToPx(16f));
+
+        TextView icon = new TextView(this);
+        icon.setText("✨");
+        icon.setTextSize(22f);
+        icon.setPadding(0, 0, dpToPx(12f), 0);
+
+        TextView text = new TextView(this);
+        text.setText("Welcome back! +" + xpEarned + " Daily Login XP");
+        text.setTextColor(android.graphics.Color.WHITE);
+        text.setTextSize(14f);
+        text.setTypeface(null, android.graphics.Typeface.BOLD);
+
+        layout.addView(icon);
+        layout.addView(text);
+        card.addView(layout);
+        root.addView(card);
+
+        // ── Drop down, pause, and slide back up ──
+        card.setTranslationY(-300f);
+        card.setAlpha(0f);
+        card.animate().translationY(0f).alpha(1f).setDuration(600)
+                .setInterpolator(new android.view.animation.OvershootInterpolator(1.5f))
+                .withEndAction(() -> {
+                    new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                        card.animate().translationY(-300f).alpha(0f).setDuration(500)
+                                .setInterpolator(new android.view.animation.AnticipateInterpolator(1.5f))
+                                .withEndAction(() -> root.removeView(card)).start();
+                    }, 3000);
+                }).start();
     }
 
     private void loadMainFragment(Fragment fragment, int navId) {
@@ -209,22 +275,17 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    // ══════════════════════════════════════════════════════
-    //   FIXED: PERFECT WINDOW INSETS (No black bar!)
-    // ══════════════════════════════════════════════════════
     private void setupWindowInsets() {
         View root          = findViewById(R.id.main);
         View fragContainer = findViewById(R.id.fragment_container);
         View topIcons      = findViewById(R.id.layoutTopRightIcons);
         View bottomNav     = findViewById(R.id.bottomNavContainer);
 
-        // DO NOT pad the root view anymore. That is what caused the black bar!
         ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
             int sysTop    = insets.getInsets(WindowInsetsCompat.Type.systemBars()).top;
             int sysBottom = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom;
             int imeBottom = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom;
 
-            // Fix 1: Ensure top icons don't hide by giving them a safer top margin
             if (topIcons != null) {
                 android.view.ViewGroup.MarginLayoutParams lp =
                         (android.view.ViewGroup.MarginLayoutParams) topIcons.getLayoutParams();
@@ -232,7 +293,6 @@ public class MainActivity extends AppCompatActivity {
                 topIcons.setLayoutParams(lp);
             }
 
-            // Fix 2: Move the floating nav container UP by sysBottom, instead of padding the whole app
             if (bottomNav != null) {
                 android.view.ViewGroup.MarginLayoutParams lp =
                         (android.view.ViewGroup.MarginLayoutParams) bottomNav.getLayoutParams();
@@ -240,7 +300,6 @@ public class MainActivity extends AppCompatActivity {
                 bottomNav.setLayoutParams(lp);
             }
 
-            // Fix 3: Keep fragment scrolling perfectly behind the nav
             if (fragContainer != null) {
                 if (imeBottom > 0) {
                     fragContainer.setPadding(0, 0, 0, imeBottom);
@@ -258,5 +317,9 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         updateNotificationBadge();
+    }
+
+    private int dpToPx(float dp) {
+        return Math.round(dp * getResources().getDisplayMetrics().density);
     }
 }

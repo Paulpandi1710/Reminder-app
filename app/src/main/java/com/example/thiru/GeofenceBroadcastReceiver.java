@@ -37,7 +37,11 @@ public class GeofenceBroadcastReceiver extends BroadcastReceiver {
         int transition = event.getGeofenceTransition();
         Log.d(TAG, "Transition type: " + transition);
 
-        // Only handle ENTER
+        if (transition == Geofence.GEOFENCE_TRANSITION_EXIT) {
+            Log.d(TAG, "Exited geofence. Ready to trigger again on next entry.");
+            return;
+        }
+
         if (transition != Geofence.GEOFENCE_TRANSITION_ENTER) return;
 
         List<Geofence> triggered = event.getTriggeringGeofences();
@@ -46,10 +50,7 @@ public class GeofenceBroadcastReceiver extends BroadcastReceiver {
             return;
         }
 
-        // Create channel immediately (sync — we're on a background thread from system)
         createChannel(context);
-
-        // Use goAsync to do DB lookup without ANR risk
         final BroadcastReceiver.PendingResult pendingResult = goAsync();
 
         Executors.newSingleThreadExecutor().execute(() -> {
@@ -77,7 +78,6 @@ public class GeofenceBroadcastReceiver extends BroadcastReceiver {
                     if (match != null) {
                         postNotification(context, match);
                     } else {
-                        // Post generic fallback
                         postFallbackNotification(context, requestId);
                     }
                 }
@@ -94,7 +94,6 @@ public class GeofenceBroadcastReceiver extends BroadcastReceiver {
                 context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (nm == null) return;
 
-        // Open app to Home tab
         Intent openApp = new Intent(context, MainActivity.class);
         openApp.putExtra("nav_tab", "home");
         openApp.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
@@ -102,7 +101,6 @@ public class GeofenceBroadcastReceiver extends BroadcastReceiver {
                 NOTIF_BASE + item.id, openApp,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
-        // Build the notification title without the emoji prefix
         String cleanTitle = item.title.replace("📍 ", "");
         String body = (item.description != null && !item.description.isEmpty()
                 && !item.description.startsWith("Arrive at"))
@@ -123,6 +121,9 @@ public class GeofenceBroadcastReceiver extends BroadcastReceiver {
                 .setContentIntent(pi);
 
         nm.notify(NOTIF_BASE + item.id, builder.build());
+
+        // ── THE FIX: Save to In-App Notifications ──
+        NotificationHelper.add(context, "📍 You arrived: " + cleanTitle, body, "geofence");
         Log.d(TAG, "Notification posted for: " + cleanTitle);
     }
 
@@ -146,6 +147,9 @@ public class GeofenceBroadcastReceiver extends BroadcastReceiver {
                 .setContentIntent(pi);
 
         nm.notify(geofenceId.hashCode(), builder.build());
+
+        // ── THE FIX: Save to In-App Notifications ──
+        NotificationHelper.add(context, "📍 Location Reminder", "You've arrived at a saved location!", "geofence");
     }
 
     private void createChannel(Context context) {

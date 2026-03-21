@@ -7,31 +7,32 @@ import android.content.SharedPreferences;
  * XPManager — Handles all XP earning, level calculation, and title assignment.
  *
  * EXPLOIT PROTECTION:
- *   Each ActionItem ID is stored when XP is awarded.
- *   If the same item is unchecked and re-checked, NO XP is given again.
- *   XP can only be earned ONCE per item per day.
- *   The "completed IDs" set resets each new day automatically.
+ * Each ActionItem ID is stored when XP is awarded.
+ * If the same item is unchecked and re-checked, NO XP is given again.
+ * XP can only be earned ONCE per item per day.
+ * The "completed IDs" set resets each new day automatically.
  *
  * XP values:
- *   Complete a task     → +10 XP  (once per item per day)
- *   Complete a routine  → +15 XP  (once per item per day)
- *   First task of day   → +5 XP bonus (once per day total)
- *   100% daily done     → +50 XP bonus (once per day)
- *   Streak day          → +20 XP per consecutive day (once per day)
+ * Complete a task     → +10 XP  (once per item per day)
+ * Complete a routine  → +15 XP  (once per item per day)
+ * First task of day   → +5 XP bonus (once per day total)
+ * 100% daily done     → +50 XP bonus (once per day)
+ * Streak day          → +20 XP per consecutive day (once per day)
+ * Daily Login         → +15 XP (once per day)
  *
  * Level thresholds:
- *   1  Novice          0 XP
- *   2  Apprentice      100 XP
- *   3  Focused         250 XP
- *   4  Dedicated       500 XP
- *   5  Disciplined     800 XP
- *   6  Flow State      1200 XP
- *   7  Deep Worker     1700 XP
- *   8  Peak Performer  2300 XP
- *   9  Elite Focus     3000 XP
- *   10 Focus Master    4000 XP
- *   11 Legend          5500 XP
- *   12 Focus God       7500 XP
+ * 1  Novice          0 XP
+ * 2  Apprentice      100 XP
+ * 3  Focused         250 XP
+ * 4  Dedicated       500 XP
+ * 5  Disciplined     800 XP
+ * 6  Flow State      1200 XP
+ * 7  Deep Worker     1700 XP
+ * 8  Peak Performer  2300 XP
+ * 9  Elite Focus     3000 XP
+ * 10 Focus Master    4000 XP
+ * 11 Legend          5500 XP
+ * 12 Focus God       7500 XP
  */
 public class XPManager {
 
@@ -41,9 +42,11 @@ public class XPManager {
     private static final String KEY_LAST_DAY      = "last_completion_date";
     private static final String KEY_FIRST_TASK    = "first_task_date";
     private static final String KEY_DAILY_BONUS   = "daily_bonus_date";
-    // Stores comma-separated item IDs that already earned XP today
     private static final String KEY_EARNED_IDS    = "earned_ids_date";
     private static final String KEY_EARNED_IDS_SET = "earned_ids";
+
+    // NEW: For tracking daily app opens
+    private static final String KEY_LAST_LOGIN_DATE = "last_login_date";
 
     private static final int[] LEVEL_XP = {
             0, 100, 250, 500, 800, 1200, 1700, 2300, 3000, 4000, 5500, 7500
@@ -65,12 +68,27 @@ public class XPManager {
     // ─────────────────────────────────────────────────────
 
     /**
+     * ── THE NEW FEATURE: DAILY LOGIN ──
+     * Call when the app opens. If they haven't opened the app today, give them +15 XP!
+     */
+    public static XPResult handleDailyLogin(Context ctx) {
+        SharedPreferences prefs = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        String today = getTodayString();
+        String lastLogin = prefs.getString(KEY_LAST_LOGIN_DATE, "");
+
+        if (!today.equals(lastLogin)) {
+            // First login today! Save the date so it doesn't trigger again.
+            prefs.edit().putString(KEY_LAST_LOGIN_DATE, today).apply();
+            return addXP(ctx, 15);
+        }
+        return null; // Already logged in today
+    }
+
+    /**
      * Call when a TASK item is checked as completed.
-     * @param itemId  The ActionItem.id — used to prevent duplicate XP
-     * @return XPResult, or null if XP was already awarded for this item today
      */
     public static XPResult onTaskCompleted(Context ctx, int itemId) {
-        if (!canEarnXP(ctx, itemId)) return null; // Already earned today
+        if (!canEarnXP(ctx, itemId)) return null;
         markXPEarned(ctx, itemId);
         int earned = 10 + getFirstTaskBonus(ctx);
         return addXP(ctx, earned);
@@ -78,11 +96,9 @@ public class XPManager {
 
     /**
      * Call when a ROUTINE item is checked as completed.
-     * @param itemId  The ActionItem.id — used to prevent duplicate XP
-     * @return XPResult, or null if XP was already awarded for this item today
      */
     public static XPResult onRoutineCompleted(Context ctx, int itemId) {
-        if (!canEarnXP(ctx, itemId)) return null; // Already earned today
+        if (!canEarnXP(ctx, itemId)) return null;
         markXPEarned(ctx, itemId);
         int earned = 15 + getFirstTaskBonus(ctx);
         return addXP(ctx, earned);
@@ -90,7 +106,6 @@ public class XPManager {
 
     /**
      * Call when user hits 100% daily completion.
-     * Safe to call multiple times — only fires once per day.
      */
     public static XPResult onDailyComplete(Context ctx) {
         SharedPreferences prefs = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
@@ -173,34 +188,25 @@ public class XPManager {
     //   EXPLOIT PROTECTION HELPERS
     // ─────────────────────────────────────────────────────
 
-    /**
-     * Returns true if the given item has NOT yet earned XP today.
-     * Resets the earned-set automatically when the day changes.
-     */
     private static boolean canEarnXP(Context ctx, int itemId) {
         SharedPreferences prefs = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         String today    = getTodayString();
         String savedDay = prefs.getString(KEY_EARNED_IDS_SET + "_day", "");
 
-        // New day — wipe the earned set so items can earn XP fresh tomorrow
         if (!today.equals(savedDay)) {
             prefs.edit()
                     .putString(KEY_EARNED_IDS_SET + "_day", today)
                     .putString(KEY_EARNED_IDS, "")
                     .apply();
-            return true; // Fresh day, XP not earned yet
+            return true;
         }
 
-        // Same day — check if this item ID is in the set
         String earnedIds = prefs.getString(KEY_EARNED_IDS, "");
         String searchToken = "," + itemId + ",";
         String wrappedIds  = "," + earnedIds + ",";
         return !wrappedIds.contains(searchToken);
     }
 
-    /**
-     * Records that this item has already earned XP today.
-     */
     private static void markXPEarned(Context ctx, int itemId) {
         SharedPreferences prefs = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         String current = prefs.getString(KEY_EARNED_IDS, "");
@@ -235,7 +241,6 @@ public class XPManager {
         return Math.min(level, LEVEL_TITLES.length);
     }
 
-    /** Returns +5 if this is the FIRST completion action today, else 0. */
     private static int getFirstTaskBonus(Context ctx) {
         SharedPreferences prefs = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         String today = getTodayString();

@@ -5,6 +5,7 @@ import android.app.DatePickerDialog;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -13,8 +14,10 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.timepicker.MaterialTimePicker;
 import com.google.android.material.timepicker.TimeFormat;
 import java.text.SimpleDateFormat;
@@ -31,11 +34,24 @@ public class EditTaskBottomSheet extends BottomSheetDialogFragment {
 
     private MaterialButton btnTypeRoutine, btnTypeTask;
     private TextView tvSelectedTime, tvSelectedDate;
-    private LinearLayout btnPickDate;
+    private MaterialCardView btnPickDate;
 
     // We pass the item we want to edit via a setter before showing the fragment
     public void setActionItem(ActionItem item) {
         this.currentItem = item;
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        // Make the system bottom sheet transparent so our custom card corners show
+        BottomSheetDialog dialog = (BottomSheetDialog) getDialog();
+        if (dialog != null) {
+            View bottomSheet = dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
+            if (bottomSheet != null) {
+                bottomSheet.setBackgroundColor(Color.TRANSPARENT);
+            }
+        }
     }
 
     @Override
@@ -53,7 +69,7 @@ public class EditTaskBottomSheet extends BottomSheetDialogFragment {
         btnTypeTask = view.findViewById(R.id.btnEditTypeTask);
         tvSelectedTime = view.findViewById(R.id.tvEditSelectedTime);
         tvSelectedDate = view.findViewById(R.id.tvEditSelectedDate);
-        LinearLayout btnPickTime = view.findViewById(R.id.btnEditPickTime);
+        MaterialCardView btnPickTime = view.findViewById(R.id.btnEditPickTime);
         btnPickDate = view.findViewById(R.id.btnEditPickDate);
 
         MaterialButton btnUpdate = view.findViewById(R.id.btnUpdate);
@@ -170,18 +186,24 @@ public class EditTaskBottomSheet extends BottomSheetDialogFragment {
 
     private void updateTypeSelection(String type) {
         selectedType = type;
+
+        int activeStroke = Color.parseColor("#4263EB");
+        int activeText = Color.parseColor("#FFFFFF");
+        int inactiveStroke = Color.parseColor("#1A2244");
+        int inactiveText = Color.parseColor("#8899BB");
+
         if (type.equals("routines")) {
             btnPickDate.setVisibility(View.GONE);
-            btnTypeRoutine.setStrokeColorResource(R.color.primary_blue);
-            btnTypeRoutine.setTextColor(getResources().getColor(R.color.primary_blue));
-            btnTypeTask.setStrokeColorResource(android.R.color.darker_gray);
-            btnTypeTask.setTextColor(getResources().getColor(android.R.color.darker_gray));
+            btnTypeRoutine.setStrokeColor(android.content.res.ColorStateList.valueOf(activeStroke));
+            btnTypeRoutine.setTextColor(activeText);
+            btnTypeTask.setStrokeColor(android.content.res.ColorStateList.valueOf(inactiveStroke));
+            btnTypeTask.setTextColor(inactiveText);
         } else {
             btnPickDate.setVisibility(View.VISIBLE);
-            btnTypeTask.setStrokeColorResource(R.color.primary_blue);
-            btnTypeTask.setTextColor(getResources().getColor(R.color.primary_blue));
-            btnTypeRoutine.setStrokeColorResource(android.R.color.darker_gray);
-            btnTypeRoutine.setTextColor(getResources().getColor(android.R.color.darker_gray));
+            btnTypeTask.setStrokeColor(android.content.res.ColorStateList.valueOf(activeStroke));
+            btnTypeTask.setTextColor(activeText);
+            btnTypeRoutine.setStrokeColor(android.content.res.ColorStateList.valueOf(inactiveStroke));
+            btnTypeRoutine.setTextColor(inactiveText);
         }
     }
 

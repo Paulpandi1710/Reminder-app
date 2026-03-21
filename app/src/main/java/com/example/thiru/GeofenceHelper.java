@@ -32,18 +32,19 @@ public class GeofenceHelper {
 
         GeofencingClient client = LocationServices.getGeofencingClient(context);
 
+        // ── THE FIX: Added EXIT transition and Responsiveness ──
         Geofence geofence = new Geofence.Builder()
                 .setRequestId(String.valueOf(item.id))
                 .setCircularRegion(item.latitude, item.longitude,
-                        Math.max(item.radius, 50f)) // minimum 50m radius
+                        Math.max(item.radius, 100f)) // Minimum 100m for pocket GPS reliability
                 .setExpirationDuration(Geofence.NEVER_EXPIRE)
-                // ENTER only — fires immediately on crossing boundary
-                .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER)
-                // NOTE: NO setLoiteringDelay — that is only for DWELL transitions
+                // We MUST track EXIT so Android knows to reset the geofence for the next ENTER!
+                .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER | Geofence.GEOFENCE_TRANSITION_EXIT)
+                // Forces the hardware to wake up and check every 60 seconds for accuracy
+                .setNotificationResponsiveness(60000)
                 .build();
 
         GeofencingRequest request = new GeofencingRequest.Builder()
-                // INITIAL_TRIGGER_ENTER: fires immediately if already inside fence
                 .setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_ENTER)
                 .addGeofence(geofence)
                 .build();
@@ -53,7 +54,7 @@ public class GeofenceHelper {
                     .addOnSuccessListener(v ->
                             Log.d(TAG, "✅ Geofence registered: "
                                     + item.title + " id=" + item.id
-                                    + " r=" + item.radius + "m"
+                                    + " r=" + Math.max(item.radius, 100f) + "m"
                                     + " lat=" + item.latitude
                                     + " lng=" + item.longitude))
                     .addOnFailureListener(e ->
@@ -102,7 +103,6 @@ public class GeofenceHelper {
     // ── PendingIntent sent to GeofenceBroadcastReceiver ───
     public static PendingIntent getGeofencePendingIntent(Context context) {
         Intent intent = new Intent(context, GeofenceBroadcastReceiver.class);
-        // FLAG_UPDATE_CURRENT reuses existing PI for same request code
         return PendingIntent.getBroadcast(context, 777, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_MUTABLE);
     }
@@ -115,7 +115,7 @@ public class GeofenceHelper {
 
     public static boolean hasBackgroundLocationPermission(Context context) {
         if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q)
-            return true; // Pre-Android 10: background = same as foreground
+            return true;
         return ContextCompat.checkSelfPermission(context,
                 Manifest.permission.ACCESS_BACKGROUND_LOCATION)
                 == PackageManager.PERMISSION_GRANTED;

@@ -3,6 +3,7 @@ package com.example.thiru;
 import android.Manifest;
 import android.os.Bundle;
 import android.view.View;
+import android.view.animation.DecelerateInterpolator;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import androidx.activity.result.ActivityResultLauncher;
@@ -37,7 +38,6 @@ public class PlannerFragment extends Fragment {
     private MaterialCardView layoutCalendarPermission;
     private TextView btnGrantCalendarPermission;
 
-    // "See more" / collapse button
     private TextView tvSeeMoreEvents;
     private boolean calendarExpanded = false;
     private List<CalendarHelper.CalendarEvent> lastEvents = new ArrayList<>();
@@ -76,13 +76,12 @@ public class PlannerFragment extends Fragment {
         btnGrantCalendarPermission = view.findViewById(R.id.btnGrantCalendarPermission);
         tvSeeMoreEvents          = view.findViewById(R.id.tvSeeMoreEvents);
 
-        // ── Date strip ─────────────────────────────────────
         RecyclerView rvDates = view.findViewById(R.id.rvDates);
         rvDates.setLayoutManager(new LinearLayoutManager(
                 getContext(), LinearLayoutManager.HORIZONTAL, false));
         DateAdapter dateAdapter = new DateAdapter(selectedDate -> {
             currentSelectedDate = selectedDate;
-            calendarExpanded = false; // reset collapse on date change
+            calendarExpanded = false;
             updateDateHeader(selectedDate);
             filterAndDisplayTasks();
             loadCalendarEvents();
@@ -90,7 +89,6 @@ public class PlannerFragment extends Fragment {
         rvDates.setAdapter(dateAdapter);
         rvDates.scrollToPosition(30);
 
-        // ── Timeline ───────────────────────────────────────
         rvTimeline.setLayoutManager(new LinearLayoutManager(getContext()));
         timelineAdapter = new TimelineAdapter();
         rvTimeline.setAdapter(timelineAdapter);
@@ -98,7 +96,6 @@ public class PlannerFragment extends Fragment {
         btnGrantCalendarPermission.setOnClickListener(v ->
                 calendarPermLauncher.launch(Manifest.permission.READ_CALENDAR));
 
-        // ── See more / collapse for calendar events ────────
         if (tvSeeMoreEvents != null) {
             tvSeeMoreEvents.setOnClickListener(v -> {
                 calendarExpanded = !calendarExpanded;
@@ -109,11 +106,15 @@ public class PlannerFragment extends Fragment {
         loadTimelineData();
         updateDateHeader(currentSelectedDate);
         checkCalendarAndLoad();
-    }
 
-    // ══════════════════════════════════════════════════════
-    //   CALENDAR — DEDUP + COLLAPSE FIX
-    // ══════════════════════════════════════════════════════
+        View scrollView = view.findViewById(R.id.plannerScrollView);
+        if (scrollView != null) {
+            scrollView.setTranslationY(120f);
+            scrollView.setAlpha(0f);
+            scrollView.animate().translationY(0f).alpha(1f)
+                    .setDuration(600).setInterpolator(new DecelerateInterpolator(2f)).start();
+        }
+    }
 
     private void checkCalendarAndLoad() {
         if (!isAdded()) return;
@@ -136,36 +137,32 @@ public class PlannerFragment extends Fragment {
         int day   = currentSelectedDate.get(Calendar.DAY_OF_MONTH);
 
         Executors.newSingleThreadExecutor().execute(() -> {
+            // Live dynamic query to the device calendar
             List<CalendarHelper.CalendarEvent> rawEvents =
                     CalendarHelper.getEventsForDay(requireContext(), year, month, day);
 
-            // ── DEDUP by event ID ──────────────────────────
-            List<CalendarHelper.CalendarEvent> events = deduplicateEvents(rawEvents);
+            // ── THE FIX: Smart Deduplication ──
+            // Removes duplicate festivals caused by syncing multiple email accounts
+            List<CalendarHelper.CalendarEvent> uniqueEvents = new ArrayList<>();
+            Set<String> seenTitles = new HashSet<>();
+
+            for (CalendarHelper.CalendarEvent event : rawEvents) {
+                // Normalize the title (lowercase, no extra spaces) to catch exact duplicates
+                String normalizedTitle = event.title.trim().toLowerCase();
+
+                // Set.add() returns false if the title already exists in the Set
+                if (seenTitles.add(normalizedTitle)) {
+                    uniqueEvents.add(event);
+                }
+            }
 
             requireActivity().runOnUiThread(() -> {
                 if (isAdded()) {
-                    lastEvents = events;
-                    displayCalendarEvents(events);
+                    lastEvents = uniqueEvents;
+                    displayCalendarEvents(uniqueEvents);
                 }
             });
         });
-    }
-
-    // ══════════════════════════════════════════════════════
-    //   Deduplicate events by ID — prevents double entries
-    // ══════════════════════════════════════════════════════
-    private List<CalendarHelper.CalendarEvent> deduplicateEvents(
-            List<CalendarHelper.CalendarEvent> raw) {
-        List<CalendarHelper.CalendarEvent> result = new ArrayList<>();
-        // Deduplicate by composite key: title + startTime
-        Set<String> seen = new HashSet<>();
-        for (CalendarHelper.CalendarEvent e : raw) {
-            String key = e.title + "|" + e.timeLabel;
-            if (seen.add(key)) { // add returns false if already present
-                result.add(e);
-            }
-        }
-        return result;
     }
 
     private void displayCalendarEvents(List<CalendarHelper.CalendarEvent> events) {
@@ -176,6 +173,13 @@ public class PlannerFragment extends Fragment {
         if (events.isEmpty()) {
             tvCalendarSectionTitle.setText("📅  Calendar Events");
             if (tvSeeMoreEvents != null) tvSeeMoreEvents.setVisibility(View.GONE);
+
+            TextView tvEmpty = new TextView(requireContext());
+            tvEmpty.setText("No device events today");
+            tvEmpty.setTextColor(0xFF445588);
+            tvEmpty.setTextSize(12f);
+            tvEmpty.setPadding(dpToPx(4f), dpToPx(8f), dpToPx(4f), dpToPx(12f));
+            layoutCalendarEvents.addView(tvEmpty);
             return;
         }
 
@@ -191,7 +195,6 @@ public class PlannerFragment extends Fragment {
             layoutCalendarEvents.addView(buildEventCard(events.get(i)));
         }
 
-        // ── See more / collapse button ─────────────────────
         if (tvSeeMoreEvents != null) {
             if (total > MAX_CALENDAR_EVENTS_SHOWN) {
                 tvSeeMoreEvents.setVisibility(View.VISIBLE);
@@ -213,30 +216,29 @@ public class PlannerFragment extends Fragment {
         LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
-        cp.setMargins(0, 0, 0, dpToPx(6));
+        cp.setMargins(0, 0, 0, dpToPx(8f));
         card.setLayoutParams(cp);
-        card.setCardBackgroundColor(0xFF0E0E24);
-        card.setRadius(dpToPx(14));
+
+        card.setCardBackgroundColor(0x0AFFFFFF);
+        card.setRadius(dpToPx(16f));
         card.setCardElevation(0f);
-        card.setStrokeWidth(dpToPx(1));
-        int strokeColor = event.calendarColor != 0
-                ? (0xFF000000 | (event.calendarColor & 0xFFFFFF)) : 0xFF1A2244;
-        card.setStrokeColor(strokeColor);
+        card.setStrokeWidth(dpToPx(1.5f));
+
+        int calendarBaseColor = event.calendarColor != 0 ? (0xFF000000 | (event.calendarColor & 0xFFFFFF)) : 0xFF4263EB;
+        int glassStrokeColor = (calendarBaseColor & 0x00FFFFFF) | 0x44000000;
+        card.setStrokeColor(glassStrokeColor);
 
         LinearLayout inner = new LinearLayout(getContext());
         inner.setOrientation(LinearLayout.HORIZONTAL);
         inner.setGravity(android.view.Gravity.CENTER_VERTICAL);
-        inner.setPadding(dpToPx(12), dpToPx(10), dpToPx(12), dpToPx(10));
+        inner.setPadding(dpToPx(14f), dpToPx(12f), dpToPx(14f), dpToPx(12f));
 
-        // Color bar
         View bar = new View(getContext());
-        LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(dpToPx(3), dpToPx(36));
-        bp.setMarginEnd(dpToPx(10));
+        LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(dpToPx(4f), dpToPx(40f));
+        bp.setMarginEnd(dpToPx(12f));
         bar.setLayoutParams(bp);
-        bar.setBackgroundColor(event.calendarColor != 0
-                ? (0xFF000000 | (event.calendarColor & 0xFFFFFF)) : 0xFF4263EB);
+        bar.setBackgroundColor(calendarBaseColor);
 
-        // Content
         LinearLayout content = new LinearLayout(getContext());
         content.setOrientation(LinearLayout.VERTICAL);
         content.setLayoutParams(new LinearLayout.LayoutParams(
@@ -244,8 +246,8 @@ public class PlannerFragment extends Fragment {
 
         TextView tvTitle = new TextView(getContext());
         tvTitle.setText(event.title);
-        tvTitle.setTextColor(0xFFEEEEFF);
-        tvTitle.setTextSize(13f);
+        tvTitle.setTextColor(0xFFFFFFFF);
+        tvTitle.setTextSize(14f);
         tvTitle.setTypeface(null, android.graphics.Typeface.BOLD);
         tvTitle.setMaxLines(1);
         tvTitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
@@ -253,12 +255,13 @@ public class PlannerFragment extends Fragment {
         TextView tvTime = new TextView(getContext());
         tvTime.setText(event.timeLabel
                 + (event.durationLabel.isEmpty() ? "" : "  ·  " + event.durationLabel));
-        tvTime.setTextColor(0xFF4263EB);
-        tvTime.setTextSize(11f);
+        tvTime.setTextColor(calendarBaseColor);
+        tvTime.setTextSize(12f);
+        tvTime.setTypeface(null, android.graphics.Typeface.BOLD);
         LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
-        tp.topMargin = dpToPx(2);
+        tp.topMargin = dpToPx(2f);
         tvTime.setLayoutParams(tp);
 
         content.addView(tvTitle);
@@ -267,14 +270,14 @@ public class PlannerFragment extends Fragment {
         if (event.location != null && !event.location.isEmpty()) {
             TextView tvLoc = new TextView(getContext());
             tvLoc.setText("📍 " + event.location);
-            tvLoc.setTextColor(0xFF334466);
-            tvLoc.setTextSize(10f);
+            tvLoc.setTextColor(0xFF8899BB);
+            tvLoc.setTextSize(11f);
             tvLoc.setMaxLines(1);
             tvLoc.setEllipsize(android.text.TextUtils.TruncateAt.END);
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT);
-            lp.topMargin = dpToPx(2);
+            lp.topMargin = dpToPx(2f);
             tvLoc.setLayoutParams(lp);
             content.addView(tvLoc);
         }
@@ -284,10 +287,6 @@ public class PlannerFragment extends Fragment {
         card.addView(inner);
         return card;
     }
-
-    // ══════════════════════════════════════════════════════
-    //   TIMELINE
-    // ══════════════════════════════════════════════════════
 
     private void updateDateHeader(Calendar calendar) {
         tvCurrentMonthYear.setText(new SimpleDateFormat(
@@ -311,6 +310,7 @@ public class PlannerFragment extends Fragment {
         int td = currentSelectedDate.get(Calendar.DAY_OF_MONTH);
 
         List<ActionItem> filtered = new ArrayList<>();
+
         for (ActionItem item : allDatabaseItems) {
             if ("history_routine".equals(item.type) || "geofence".equals(item.type))
                 continue;
@@ -343,7 +343,7 @@ public class PlannerFragment extends Fragment {
         checkCalendarAndLoad();
     }
 
-    private int dpToPx(int dp) {
+    private int dpToPx(float dp) {
         return Math.round(dp * getResources().getDisplayMetrics().density);
     }
 }

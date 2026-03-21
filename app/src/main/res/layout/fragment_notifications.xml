@@ -76,7 +76,7 @@
             </LinearLayout>
 
             <com.google.android.material.card.MaterialCardView
-                android:id="@+id/btnMarkAllRead"
+                android:id="@+id/btnClearAll"
                 android:layout_width="wrap_content"
                 android:layout_height="30dp"
                 android:clickable="true"
@@ -90,7 +90,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
                     android:gravity="center"
-                    android:text="Mark read"
+                    android:text="Clear all"
                     android:textColor="#FFFFFF"
                     android:textSize="11sp"
                     android:textStyle="bold"

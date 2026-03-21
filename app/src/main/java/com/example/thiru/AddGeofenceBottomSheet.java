@@ -3,6 +3,7 @@ package com.example.thiru;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.location.Address;
 import android.location.Geocoder;
 import android.os.Build;
@@ -43,7 +44,11 @@ public class AddGeofenceBottomSheet extends BottomSheetDialogFragment {
     private EditText etAddressSearch, etGeoTitle, etGeoNote;
     private WebView webViewMap;
     private TextView tvCoordsDisplay;
-    private TextView chipRadius50, chipRadius100, chipRadius200, chipRadius500;
+
+    // UI Upgraded fields
+    private MaterialCardView cardRad50, cardRad100, cardRad200, cardRad500;
+    private TextView tvRad50, tvRad100, tvRad200, tvRad500;
+
     private MaterialCardView cardSearchResults, cardCoordsDisplay, cardGPSOnly;
     private LinearLayout layoutSearchResults;
     private View layoutMapLoading;
@@ -79,12 +84,15 @@ public class AddGeofenceBottomSheet extends BottomSheetDialogFragment {
     @Override
     public void onStart() {
         super.onStart();
-        // Expand to full screen
+        // Expand to full screen and make sure background handles our custom card properly
         BottomSheetDialog dialog = (BottomSheetDialog) getDialog();
         if (dialog != null) {
             View bottomSheet = dialog.findViewById(
                     com.google.android.material.R.id.design_bottom_sheet);
             if (bottomSheet != null) {
+                // Ensure the system doesn't paint a white box behind our dark card
+                bottomSheet.setBackgroundColor(Color.TRANSPARENT);
+
                 BottomSheetBehavior<View> behavior = BottomSheetBehavior.from(bottomSheet);
                 bottomSheet.getLayoutParams().height = ViewGroup.LayoutParams.MATCH_PARENT;
                 behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
@@ -104,10 +112,16 @@ public class AddGeofenceBottomSheet extends BottomSheetDialogFragment {
         etGeoNote        = view.findViewById(R.id.etGeoNote);
         webViewMap       = view.findViewById(R.id.webViewMap);
         tvCoordsDisplay  = view.findViewById(R.id.tvCoordsDisplay);
-        chipRadius50     = view.findViewById(R.id.chipRadius50);
-        chipRadius100    = view.findViewById(R.id.chipRadius100);
-        chipRadius200    = view.findViewById(R.id.chipRadius200);
-        chipRadius500    = view.findViewById(R.id.chipRadius500);
+
+        cardRad50        = view.findViewById(R.id.cardRad50);
+        cardRad100       = view.findViewById(R.id.cardRad100);
+        cardRad200       = view.findViewById(R.id.cardRad200);
+        cardRad500       = view.findViewById(R.id.cardRad500);
+        tvRad50          = view.findViewById(R.id.tvRad50);
+        tvRad100         = view.findViewById(R.id.tvRad100);
+        tvRad200         = view.findViewById(R.id.tvRad200);
+        tvRad500         = view.findViewById(R.id.tvRad500);
+
         cardSearchResults   = view.findViewById(R.id.cardSearchResults);
         layoutSearchResults = view.findViewById(R.id.layoutSearchResults);
         cardCoordsDisplay   = view.findViewById(R.id.cardCoordsDisplay);
@@ -135,7 +149,6 @@ public class AddGeofenceBottomSheet extends BottomSheetDialogFragment {
         settings.setLoadsImagesAutomatically(true);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
 
-        // ── JavaScript → Java bridge ──────────────────────
         webViewMap.addJavascriptInterface(new Object() {
             @JavascriptInterface
             public void onLocationSelected(double lat, double lng) {
@@ -143,7 +156,6 @@ public class AddGeofenceBottomSheet extends BottomSheetDialogFragment {
                 selectedLng = lng;
                 mainHandler.post(() -> {
                     updateCoordsDisplay(lat, lng);
-                    // update radius circle on map
                     webViewMap.evaluateJavascript(
                             "updateRadius(" + selectedRadius + ");", null);
                 });
@@ -160,12 +172,11 @@ public class AddGeofenceBottomSheet extends BottomSheetDialogFragment {
         });
         webViewMap.setWebChromeClient(new WebChromeClient());
 
-        // Load map from assets
         webViewMap.loadUrl("file:///android_asset/geofence_map.html");
     }
 
     // ══════════════════════════════════════════════════════
-    //   ADDRESS SEARCH — Android Geocoder (no API key)
+    //   ADDRESS SEARCH — Android Geocoder
     // ══════════════════════════════════════════════════════
 
     private void setupSearchBar(View view) {
@@ -181,14 +192,13 @@ public class AddGeofenceBottomSheet extends BottomSheetDialogFragment {
         String query = etAddressSearch.getText().toString().trim();
         if (query.isEmpty()) return;
 
-        // Show loading state
         if (cardSearchResults != null) {
             cardSearchResults.setVisibility(View.VISIBLE);
             if (layoutSearchResults != null) {
                 layoutSearchResults.removeAllViews();
                 TextView loading = new TextView(getContext());
                 loading.setText("   🔍 Searching...");
-                loading.setTextColor(0xFF5566AA);
+                loading.setTextColor(0xFF8899BB);
                 loading.setTextSize(13f);
                 loading.setPadding(16, 12, 16, 12);
                 layoutSearchResults.addView(loading);
@@ -200,7 +210,6 @@ public class AddGeofenceBottomSheet extends BottomSheetDialogFragment {
                 Geocoder geocoder = new Geocoder(requireContext(), Locale.getDefault());
                 List<Address> results;
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    // API 33+ async method
                     geocoder.getFromLocationName(query, 5, addresses ->
                             mainHandler.post(() -> showSearchResults(addresses)));
                     return;
@@ -226,7 +235,6 @@ public class AddGeofenceBottomSheet extends BottomSheetDialogFragment {
         }
 
         for (Address addr : results) {
-            // Build display string
             String line1 = addr.getMaxAddressLineIndex() >= 0
                     ? addr.getAddressLine(0) : addr.getLocality();
             if (line1 == null || line1.isEmpty()) continue;
@@ -238,13 +246,12 @@ public class AddGeofenceBottomSheet extends BottomSheetDialogFragment {
             TextView tv1 = row.findViewById(android.R.id.text1);
             TextView tv2 = row.findViewById(android.R.id.text2);
 
-            // Format: first part bold, rest smaller
             String[] parts = line1.split(",", 2);
             tv1.setText(parts[0].trim());
             tv1.setTextColor(0xFFFFFFFF);
             tv1.setTextSize(13f);
             tv2.setText(parts.length > 1 ? parts[1].trim() : "");
-            tv2.setTextColor(0xFF445588);
+            tv2.setTextColor(0xFF8899BB);
             tv2.setTextSize(11f);
             row.setBackgroundColor(0x00000000);
             row.setPadding(16, 10, 16, 10);
@@ -254,21 +261,17 @@ public class AddGeofenceBottomSheet extends BottomSheetDialogFragment {
             final String placeName = parts[0].trim();
 
             row.setOnClickListener(v -> {
-                // Pin on map
                 selectLocation(lat, lng);
-                // Auto-fill title if empty
                 if (etGeoTitle.getText().toString().trim().isEmpty()) {
                     etGeoTitle.setText(placeName);
                 }
-                // Hide results
                 cardSearchResults.setVisibility(View.GONE);
             });
 
             layoutSearchResults.addView(row);
 
-            // Divider
             View divider = new View(getContext());
-            divider.setBackgroundColor(0x111A2244);
+            divider.setBackgroundColor(0x11FFFFFF);
             divider.setLayoutParams(new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, 1));
             layoutSearchResults.addView(divider);
@@ -282,14 +285,13 @@ public class AddGeofenceBottomSheet extends BottomSheetDialogFragment {
         layoutSearchResults.removeAllViews();
         TextView err = new TextView(getContext());
         err.setText("   ❌ No results found. Try a different search.");
-        err.setTextColor(0xFF554466);
+        err.setTextColor(0xFFFA5252);
         err.setTextSize(12f);
         err.setPadding(16, 14, 16, 14);
         layoutSearchResults.addView(err);
         if (cardSearchResults != null)
             cardSearchResults.setVisibility(View.VISIBLE);
 
-        // Auto-hide after 2s
         mainHandler.postDelayed(() -> {
             if (isAdded() && cardSearchResults != null)
                 cardSearchResults.setVisibility(View.GONE);
@@ -301,7 +303,6 @@ public class AddGeofenceBottomSheet extends BottomSheetDialogFragment {
     // ══════════════════════════════════════════════════════
 
     private void setupLocationButtons(View view) {
-        // Both GPS buttons do the same thing
         View.OnClickListener gpsClick = v -> requestLocationAndFetch();
         if (cardGPSOnly != null) cardGPSOnly.setOnClickListener(gpsClick);
         if (cardCoordsDisplay != null)
@@ -324,9 +325,6 @@ public class AddGeofenceBottomSheet extends BottomSheetDialogFragment {
 
     @SuppressLint("MissingPermission")
     private void fetchCurrentLocation() {
-        if (cardGPSOnly != null) {
-            TextView tv = cardGPSOnly.findViewById(android.R.id.text1);
-        }
         Toast.makeText(getContext(), "📡 Getting your location...",
                 Toast.LENGTH_SHORT).show();
 
@@ -334,10 +332,8 @@ public class AddGeofenceBottomSheet extends BottomSheetDialogFragment {
                 .addOnSuccessListener(location -> {
                     if (location != null) {
                         selectLocation(location.getLatitude(), location.getLongitude());
-                        // Reverse geocode to suggest title
                         reverseGeocode(location.getLatitude(), location.getLongitude());
                     } else {
-                        // fallback to last known
                         fusedClient.getLastLocation().addOnSuccessListener(last -> {
                             if (last != null) {
                                 selectLocation(last.getLatitude(), last.getLongitude());
@@ -393,7 +389,7 @@ public class AddGeofenceBottomSheet extends BottomSheetDialogFragment {
     }
 
     // ══════════════════════════════════════════════════════
-    //   SELECT LOCATION — updates map + coords display
+    //   SELECT LOCATION
     // ══════════════════════════════════════════════════════
 
     private void selectLocation(double lat, double lng) {
@@ -401,7 +397,6 @@ public class AddGeofenceBottomSheet extends BottomSheetDialogFragment {
         selectedLng = lng;
         updateCoordsDisplay(lat, lng);
 
-        // Move map to location + place marker + draw radius circle
         if (mapReady) {
             String js = String.format(Locale.US,
                     "setLocationFromAndroid(%f, %f, %f);", lat, lng, selectedRadius);
@@ -421,42 +416,65 @@ public class AddGeofenceBottomSheet extends BottomSheetDialogFragment {
     }
 
     // ══════════════════════════════════════════════════════
-    //   RADIUS CHIPS
+    //   RADIUS CHIPS — Fully Glassmorphism applied
     // ══════════════════════════════════════════════════════
 
     private void setupRadiusChips() {
-        selectRadius(chipRadius50, 50f);
-        chipRadius50.setOnClickListener(v  -> selectRadius(chipRadius50, 50f));
-        chipRadius100.setOnClickListener(v -> selectRadius(chipRadius100, 100f));
-        chipRadius200.setOnClickListener(v -> selectRadius(chipRadius200, 200f));
-        chipRadius500.setOnClickListener(v -> selectRadius(chipRadius500, 500f));
+        selectRadius(50f);
+        cardRad50.setOnClickListener(v  -> selectRadius(50f));
+        cardRad100.setOnClickListener(v -> selectRadius(100f));
+        cardRad200.setOnClickListener(v -> selectRadius(200f));
+        cardRad500.setOnClickListener(v -> selectRadius(500f));
     }
 
-    private void selectRadius(TextView selected, float radius) {
+    private void selectRadius(float radius) {
         selectedRadius = radius;
-        int active   = 0xFFFFFFFF;
-        int inactive = 0xFF445588;
 
-        chipRadius50.setTextColor(chipRadius50   == selected ? active : inactive);
-        chipRadius100.setTextColor(chipRadius100 == selected ? active : inactive);
-        chipRadius200.setTextColor(chipRadius200 == selected ? active : inactive);
-        chipRadius500.setTextColor(chipRadius500 == selected ? active : inactive);
+        int activeCardBg   = 0xFF4263EB;
+        int inactiveCardBg = 0x0AFFFFFF;
+        int activeStroke   = 0xFF4263EB;
+        int inactiveStroke = 0xFF1A2244;
+        int activeText     = 0xFFFFFFFF;
+        int inactiveText   = 0xFF8899BB;
 
-        int selBg  = R.drawable.tab_selected_bg;
-        int normBg = R.drawable.rounded_input_bg;
-        chipRadius50.setBackground(ContextCompat.getDrawable(requireContext(),
-                chipRadius50  == selected ? selBg : normBg));
-        chipRadius100.setBackground(ContextCompat.getDrawable(requireContext(),
-                chipRadius100 == selected ? selBg : normBg));
-        chipRadius200.setBackground(ContextCompat.getDrawable(requireContext(),
-                chipRadius200 == selected ? selBg : normBg));
-        chipRadius500.setBackground(ContextCompat.getDrawable(requireContext(),
-                chipRadius500 == selected ? selBg : normBg));
+        // Reset all
+        cardRad50.setCardBackgroundColor(inactiveCardBg);
+        cardRad50.setStrokeColor(inactiveStroke);
+        tvRad50.setTextColor(inactiveText);
 
-        // Update radius circle on map
+        cardRad100.setCardBackgroundColor(inactiveCardBg);
+        cardRad100.setStrokeColor(inactiveStroke);
+        tvRad100.setTextColor(inactiveText);
+
+        cardRad200.setCardBackgroundColor(inactiveCardBg);
+        cardRad200.setStrokeColor(inactiveStroke);
+        tvRad200.setTextColor(inactiveText);
+
+        cardRad500.setCardBackgroundColor(inactiveCardBg);
+        cardRad500.setStrokeColor(inactiveStroke);
+        tvRad500.setTextColor(inactiveText);
+
+        // Highlight selected
+        if (radius == 50f) {
+            cardRad50.setCardBackgroundColor(activeCardBg);
+            cardRad50.setStrokeColor(activeStroke);
+            tvRad50.setTextColor(activeText);
+        } else if (radius == 100f) {
+            cardRad100.setCardBackgroundColor(activeCardBg);
+            cardRad100.setStrokeColor(activeStroke);
+            tvRad100.setTextColor(activeText);
+        } else if (radius == 200f) {
+            cardRad200.setCardBackgroundColor(activeCardBg);
+            cardRad200.setStrokeColor(activeStroke);
+            tvRad200.setTextColor(activeText);
+        } else if (radius == 500f) {
+            cardRad500.setCardBackgroundColor(activeCardBg);
+            cardRad500.setStrokeColor(activeStroke);
+            tvRad500.setTextColor(activeText);
+        }
+
         if (mapReady && selectedLat != 0.0) {
-            webViewMap.evaluateJavascript(
-                    "updateRadius(" + radius + ");", null);
+            webViewMap.evaluateJavascript("updateRadius(" + radius + ");", null);
         }
     }
 
@@ -486,7 +504,6 @@ public class AddGeofenceBottomSheet extends BottomSheetDialogFragment {
         final String coords = String.format(Locale.US, "%.5f, %.5f (r=%dm)",
                 lat, lng, (int) rad);
 
-        // Build ActionItem
         ActionItem item = new ActionItem();
         item.type        = "geofence";
         item.title       = "📍 " + title;
@@ -503,16 +520,13 @@ public class AddGeofenceBottomSheet extends BottomSheetDialogFragment {
         if (saveLabel != null) saveLabel.setText("Saving...");
 
         Executors.newSingleThreadExecutor().execute(() -> {
-            // Insert to DB
             FocusDatabase.getInstance(requireContext()).actionDao().insert(item);
 
-            // Wait a moment then query back the inserted item to get its real ID
             try { Thread.sleep(300); } catch (Exception ignored) {}
 
             List<ActionItem> all = FocusDatabase.getInstance(requireContext())
                     .actionDao().getAllItemsSync();
 
-            // Find the newest geofence with this title and coordinates
             ActionItem saved = null;
             int maxId = -1;
             for (ActionItem a : all) {

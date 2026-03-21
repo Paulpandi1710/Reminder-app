@@ -31,7 +31,9 @@ public class NotificationsFragment extends Fragment {
         View emptyLayout      = view.findViewById(R.id.layoutNotifEmpty);
         TextView tvSubtitle   = view.findViewById(R.id.tvNotifSubtitle);
         MaterialCardView btnBack      = view.findViewById(R.id.btnNotifBack);
-        MaterialCardView btnMarkRead  = view.findViewById(R.id.btnMarkAllRead);
+
+        // ── THE FIX: Clear All Button ──
+        MaterialCardView btnClearAll  = view.findViewById(R.id.btnClearAll);
 
         List<NotificationItem> items  = NotificationHelper.getAll(requireContext());
         int unread = NotificationHelper.getUnreadCount(requireContext());
@@ -40,6 +42,7 @@ public class NotificationsFragment extends Fragment {
                 ? unread + " unread notification" + (unread > 1 ? "s" : "")
                 : "All caught up ✓");
 
+        // Opening the fragment immediately marks them as read
         NotificationHelper.markAllRead(requireContext());
         if (getActivity() instanceof MainActivity)
             ((MainActivity) getActivity()).updateNotificationBadge();
@@ -50,12 +53,22 @@ public class NotificationsFragment extends Fragment {
             }
         });
 
-        btnMarkRead.setOnClickListener(v -> {
-            NotificationHelper.markAllRead(requireContext());
+        // ── THE FIX: Wipes data, resets UI, updates badge ──
+        btnClearAll.setOnClickListener(v -> {
+            NotificationHelper.clearAll(requireContext());
+            items.clear();
             tvSubtitle.setText("All caught up ✓");
-            if (getActivity() instanceof MainActivity)
+
+            if (getActivity() instanceof MainActivity) {
                 ((MainActivity) getActivity()).updateNotificationBadge();
-            if (rv.getAdapter() != null) rv.getAdapter().notifyDataSetChanged();
+            }
+
+            if (rv.getAdapter() != null) {
+                rv.getAdapter().notifyDataSetChanged();
+            }
+
+            emptyLayout.setVisibility(View.VISIBLE);
+            rv.setVisibility(View.GONE);
         });
 
         if (items.isEmpty()) {

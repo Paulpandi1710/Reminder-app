@@ -12,8 +12,9 @@ import androidx.core.app.NotificationCompat;
 import androidx.work.Worker;
 import androidx.work.WorkerParameters;
 import java.util.Calendar;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 public class FestivalWorker extends Worker {
 
@@ -28,90 +29,57 @@ public class FestivalWorker extends Worker {
     @Override
     public Result doWork() {
         createChannel();
-        checkAndNotify();
+        checkAndNotifyDynamic();
         return Result.success();
     }
 
-    private void checkAndNotify() {
-        Calendar today    = Calendar.getInstance();
+    private void checkAndNotifyDynamic() {
+        if (!CalendarHelper.hasPermission(getApplicationContext())) {
+            Log.d(TAG, "No calendar permission. Cannot check festivals.");
+            return;
+        }
+
+        // ── 1. Check for TODAY ──
+        Calendar today = Calendar.getInstance();
+        int tYear = today.get(Calendar.YEAR);
+        int tMonth = today.get(Calendar.MONTH);
+        int tDay = today.get(Calendar.DAY_OF_MONTH);
+
+        List<CalendarHelper.CalendarEvent> todayEvents =
+                CalendarHelper.getEventsForDay(getApplicationContext(), tYear, tMonth, tDay);
+
+        Set<String> seenToday = new HashSet<>();
+        for (CalendarHelper.CalendarEvent event : todayEvents) {
+            if (event.allDay) {
+                String normalizedTitle = event.title.trim().toLowerCase();
+                // .add() returns true only if the item wasn't already in the Set (Stops 3x duplicates!)
+                if (seenToday.add(normalizedTitle)) {
+                    postFestivalNotification(event.title, true);
+                }
+            }
+        }
+
+        // ── 2. Check for TOMORROW ──
         Calendar tomorrow = Calendar.getInstance();
         tomorrow.add(Calendar.DAY_OF_YEAR, 1);
 
-        int todayMonth = today.get(Calendar.MONTH) + 1;
-        int todayDay   = today.get(Calendar.DAY_OF_MONTH);
-        int todayYear  = today.get(Calendar.YEAR);
-        int tmrMonth   = tomorrow.get(Calendar.MONTH) + 1;
-        int tmrDay     = tomorrow.get(Calendar.DAY_OF_MONTH);
-        int tmrYear    = tomorrow.get(Calendar.YEAR);
+        int tmrYear = tomorrow.get(Calendar.YEAR);
+        int tmrMonth = tomorrow.get(Calendar.MONTH);
+        int tmrDay = tomorrow.get(Calendar.DAY_OF_MONTH);
 
-        Map<String, String> festivals = buildFestivalMap(todayYear);
+        List<CalendarHelper.CalendarEvent> tomorrowEvents =
+                CalendarHelper.getEventsForDay(getApplicationContext(), tmrYear, tmrMonth, tmrDay);
 
-        // Check today
-        String todayKey = todayMonth + "-" + todayDay;
-        String todayFullKey = todayYear + "-" + todayMonth + "-" + todayDay;
-        String todayFest = festivals.containsKey(todayFullKey)
-                ? festivals.get(todayFullKey) : festivals.get(todayKey);
-        if (todayFest != null) {
-            postFestivalNotification(todayFest, true);
+        Set<String> seenTomorrow = new HashSet<>();
+        for (CalendarHelper.CalendarEvent event : tomorrowEvents) {
+            if (event.allDay) {
+                String normalizedTitle = event.title.trim().toLowerCase();
+                // Stops duplicates for tomorrow's alerts too
+                if (seenTomorrow.add(normalizedTitle)) {
+                    postFestivalNotification(event.title, false);
+                }
+            }
         }
-
-        // Check tomorrow
-        String tmrKey = tmrMonth + "-" + tmrDay;
-        String tmrFullKey = tmrYear + "-" + tmrMonth + "-" + tmrDay;
-        String tmrFest = festivals.containsKey(tmrFullKey)
-                ? festivals.get(tmrFullKey) : festivals.get(tmrKey);
-        if (tmrFest != null) {
-            postTomorrowNotification(tmrFest);
-        }
-    }
-
-    private Map<String, String> buildFestivalMap(int year) {
-        Map<String, String> f = new HashMap<>();
-
-        // ── Fixed-date festivals (MM-DD) ──────────────────
-        f.put("1-1",   "New Year's Day 🎆");
-        f.put("1-14",  "Pongal / Makar Sankranti 🌾");
-        f.put("1-15",  "Mattu Pongal 🐄");
-        f.put("1-26",  "Republic Day 🇮🇳");
-        f.put("2-14",  "Valentine's Day 💝");
-        f.put("4-14",  "Tamil New Year / Vishu 🌸");
-        f.put("4-22",  "Earth Day 🌍");
-        f.put("8-15",  "Independence Day 🇮🇳");
-        f.put("10-2",  "Gandhi Jayanti 🕊️");
-        f.put("10-31", "Halloween 🎃");
-        f.put("11-14", "Children's Day 🧒");
-        f.put("12-25", "Christmas 🎄");
-        f.put("12-31", "New Year's Eve 🎉");
-
-        // ── Year-specific moon-based festivals (YYYY-MM-DD) ─
-        // 2025
-        f.put("2025-2-26",  "Maha Shivaratri 🔱");
-        f.put("2025-3-14",  "Holi 🎨");
-        f.put("2025-3-30",  "Ram Navami 🙏");
-        f.put("2025-4-6",   "Hanuman Jayanti 🙏");
-        f.put("2025-4-18",  "Good Friday ✝️");
-        f.put("2025-4-20",  "Easter Sunday ✝️");
-        f.put("2025-5-12",  "Eid ul-Fitr 🌙");
-        f.put("2025-6-7",   "Eid ul-Adha 🌙");
-        f.put("2025-8-16",  "Janmashtami 🪈");
-        f.put("2025-8-27",  "Ganesh Chaturthi 🐘");
-        f.put("2025-10-1",  "Navratri Begins 🕺");
-        f.put("2025-10-2",  "Gandhi Jayanti + Navratri 🕊️");
-        f.put("2025-10-8",  "Dussehra / Vijayadasami 🏹");
-        f.put("2025-10-20", "Diwali 🪔");
-        f.put("2025-10-22", "Diwali Main Day 🪔✨");
-        f.put("2025-11-5",  "Bhai Dooj 🤝");
-        f.put("2025-11-15", "Guru Nanak Jayanti 🙏");
-
-        // 2026
-        f.put("2026-2-15",  "Maha Shivaratri 🔱");
-        f.put("2026-3-3",   "Holi 🎨");
-        f.put("2026-5-1",   "Eid ul-Fitr 🌙");
-        f.put("2026-8-5",   "Janmashtami 🪈");
-        f.put("2026-10-11", "Dussehra 🏹");
-        f.put("2026-11-8",  "Diwali 🪔");
-
-        return f;
     }
 
     private void postFestivalNotification(String festivalName, boolean isToday) {
@@ -121,12 +89,10 @@ public class FestivalWorker extends Worker {
 
         String title = isToday
                 ? "🎉 " + festivalName + " Today!"
-                : "🔔 " + festivalName + " Tomorrow!";
+                : "🔔 Tomorrow is " + festivalName + "!";
         String body  = isToday
-                ? "Wishing you a joyful " + cleanName(festivalName)
-                + "! Remember to complete your flows 💪"
-                : "Get ready for " + cleanName(festivalName)
-                + " tomorrow! Plan your day in FocusFlow 📋";
+                ? "Wishing you a joyful " + cleanName(festivalName) + "! Remember to complete your flows 💪"
+                : "Get ready for " + cleanName(festivalName) + " tomorrow! Plan your day in FocusFlow 📋";
 
         Intent openApp = new Intent(getApplicationContext(), MainActivity.class);
         openApp.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
@@ -145,15 +111,11 @@ public class FestivalWorker extends Worker {
                         .setContentIntent(pi);
 
         nm.notify(festivalName.hashCode(), builder.build());
-        Log.d(TAG, "Festival notification posted: " + festivalName);
-    }
-
-    private void postTomorrowNotification(String festivalName) {
-        postFestivalNotification(festivalName, false);
+        NotificationHelper.add(getApplicationContext(), title, body, "festival");
+        Log.d(TAG, "Dynamic festival notification posted for: " + festivalName);
     }
 
     private String cleanName(String name) {
-        // Remove emoji characters for cleaner body text
         return name.replaceAll("[^\\p{L}\\p{N}\\s/]", "").trim();
     }
 

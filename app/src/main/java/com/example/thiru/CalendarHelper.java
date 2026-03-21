@@ -1,20 +1,17 @@
 package com.example.thiru;
 
 import android.content.ContentResolver;
+import android.content.ContentUris;
 import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
 import android.provider.CalendarContract;
+import android.util.Log;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * CalendarHelper — Reads events from the device's local calendar.
- * 100% offline. Uses ContentResolver + READ_CALENDAR permission.
- * No Google API, no internet required.
- */
 public class CalendarHelper {
 
     public static class CalendarEvent {
@@ -85,7 +82,9 @@ public class CalendarHelper {
             return minutes + "m";
         }
 
+        // REQUIRED BY AI ENGINE!
         public boolean overlapsWith(int taskHour, int taskMinute, int durationMinutes) {
+            if (allDay) return false;
             long taskStart = toMillisToday(taskHour, taskMinute);
             long taskEnd   = taskStart + durationMinutes * 60_000L;
             return startMillis < taskEnd && endMillis > taskStart;
@@ -101,25 +100,26 @@ public class CalendarHelper {
         }
     }
 
-    // ─────────────────────────────────────────────────────
-    //   PUBLIC API
-    // ─────────────────────────────────────────────────────
-
     public static List<CalendarEvent> getEventsForDay(Context context,
                                                       int year, int month, int day) {
         if (!hasPermission(context)) return new ArrayList<>();
 
-        Calendar start = Calendar.getInstance();
-        start.set(year, month, day, 0, 0, 0);
-        start.set(Calendar.MILLISECOND, 0);
+        Calendar localStart = Calendar.getInstance();
+        localStart.set(year, month, day, 0, 0, 0);
+        localStart.set(Calendar.MILLISECOND, 0);
 
-        Calendar end = Calendar.getInstance();
-        end.set(year, month, day, 23, 59, 59);
-        end.set(Calendar.MILLISECOND, 999);
+        Calendar localEnd = Calendar.getInstance();
+        localEnd.set(year, month, day, 23, 59, 59);
+        localEnd.set(Calendar.MILLISECOND, 999);
 
-        List<CalendarEvent> events =
-                queryEvents(context, start.getTimeInMillis(), end.getTimeInMillis());
-        Collections.sort(events, (a, b) -> Long.compare(a.startMillis, b.startMillis));
+        List<CalendarEvent> events = queryEvents(context, localStart.getTimeInMillis(), localEnd.getTimeInMillis());
+
+        Collections.sort(events, (a, b) -> {
+            if (a.allDay && !b.allDay) return -1;
+            if (!a.allDay && b.allDay) return 1;
+            return Long.compare(a.startMillis, b.startMillis);
+        });
+
         return events;
     }
 
@@ -146,21 +146,12 @@ public class CalendarHelper {
                 android.Manifest.permission.READ_CALENDAR);
     }
 
-    // ─────────────────────────────────────────────────────
-    //   PRIVATE QUERY
-    //
-    //   FIX: CalendarContract.Instances has NO DELETED field.
-    //   DELETED only exists on CalendarContract.Events.
-    //   Fix: pass null selection — the Instances content provider
-    //   automatically excludes deleted/cancelled events from its
-    //   results within the given time window. No filter needed.
-    // ─────────────────────────────────────────────────────
-
     private static List<CalendarEvent> queryEvents(Context context,
                                                    long startMs, long endMs) {
         List<CalendarEvent> events = new ArrayList<>();
         ContentResolver cr = context.getContentResolver();
 
+        // FIX: Removed CALENDAR_COLOR completely. This was crashing the query on modern Android.
         String[] projection = {
                 CalendarContract.Instances.EVENT_ID,
                 CalendarContract.Instances.TITLE,
@@ -168,23 +159,18 @@ public class CalendarHelper {
                 CalendarContract.Instances.EVENT_LOCATION,
                 CalendarContract.Instances.BEGIN,
                 CalendarContract.Instances.END,
-                CalendarContract.Instances.ALL_DAY,
-                CalendarContract.Instances.CALENDAR_DISPLAY_NAME,
-                CalendarContract.Instances.CALENDAR_COLOR
+                CalendarContract.Instances.ALL_DAY
         };
 
-        // Correct URI construction — startMs and endMs as path segments
-        Uri instancesUri = CalendarContract.Instances.CONTENT_URI
-                .buildUpon()
-                .appendPath(String.valueOf(startMs))
-                .appendPath(String.valueOf(endMs))
-                .build();
+        Uri.Builder builder = CalendarContract.Instances.CONTENT_URI.buildUpon();
+        ContentUris.appendId(builder, startMs);
+        ContentUris.appendId(builder, endMs);
 
         try {
             Cursor cursor = cr.query(
-                    instancesUri,
+                    builder.build(),
                     projection,
-                    null,   // ← FIX: null selection, no DELETED filter needed
+                    null,
                     null,
                     CalendarContract.Instances.BEGIN + " ASC");
 
@@ -197,19 +183,18 @@ public class CalendarHelper {
                     long   dtStart  = cursor.getLong(4);
                     long   dtEnd    = cursor.getLong(5);
                     int    allDay   = cursor.getInt(6);
-                    String calName  = cursor.getString(7);
-                    int    calColor = cursor.getInt(8);
 
-                    // Guard: if end time missing, default to +1 hour
+                    int calColor = 0xFF4263EB; // Safe default blue
+
                     if (dtEnd == 0) dtEnd = dtStart + 3_600_000L;
 
                     events.add(new CalendarEvent(id, title, desc, loc,
-                            dtStart, dtEnd, allDay == 1, calName, calColor));
+                            dtStart, dtEnd, allDay == 1, "Calendar", calColor));
                 }
                 cursor.close();
             }
         } catch (Exception e) {
-            // Permission not granted or calendar unavailable — silently return empty
+            Log.e("CalendarHelper", "Error reading calendar", e);
         }
 
         return events;

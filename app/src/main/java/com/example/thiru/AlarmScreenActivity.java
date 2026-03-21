@@ -296,7 +296,6 @@ public class AlarmScreenActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
-        // Always stop the alarm service when activity is destroyed
         stopAlarmService();
         super.onDestroy();
     }
