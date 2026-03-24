@@ -32,15 +32,14 @@ public class GeofenceHelper {
 
         GeofencingClient client = LocationServices.getGeofencingClient(context);
 
-        // ── THE FIX: Added EXIT transition and Responsiveness ──
+        // ── THE FIX: Strictly respect the item.radius from the UI ──
+        float actualRadius = item.radius > 0 ? item.radius : 50f;
+
         Geofence geofence = new Geofence.Builder()
                 .setRequestId(String.valueOf(item.id))
-                .setCircularRegion(item.latitude, item.longitude,
-                        Math.max(item.radius, 100f)) // Minimum 100m for pocket GPS reliability
+                .setCircularRegion(item.latitude, item.longitude, actualRadius)
                 .setExpirationDuration(Geofence.NEVER_EXPIRE)
-                // We MUST track EXIT so Android knows to reset the geofence for the next ENTER!
                 .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER | Geofence.GEOFENCE_TRANSITION_EXIT)
-                // Forces the hardware to wake up and check every 60 seconds for accuracy
                 .setNotificationResponsiveness(60000)
                 .build();
 
@@ -54,7 +53,7 @@ public class GeofenceHelper {
                     .addOnSuccessListener(v ->
                             Log.d(TAG, "✅ Geofence registered: "
                                     + item.title + " id=" + item.id
-                                    + " r=" + Math.max(item.radius, 100f) + "m"
+                                    + " r=" + actualRadius + "m"
                                     + " lat=" + item.latitude
                                     + " lng=" + item.longitude))
                     .addOnFailureListener(e ->

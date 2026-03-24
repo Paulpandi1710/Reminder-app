@@ -63,13 +63,6 @@ public class AlarmScreenActivity extends AppCompatActivity {
         if (tvTitle != null)
             tvTitle.setText(userName + ", it's time for:\n" + originalTaskTitle);
 
-        // ══════════════════════════════════════════════════
-        //   CRITICAL FIX — DO NOT start audio/vibration here.
-        //   AlarmService already plays ringtone + vibrates.
-        //   Starting it again here caused double sound.
-        //   This activity ONLY shows the UI.
-        // ══════════════════════════════════════════════════
-
         // Auto-dismiss after 60s
         timeoutRunnable = () -> {
             Toast.makeText(this, "Alarm ignored. Moved to Pending.",
@@ -146,12 +139,14 @@ public class AlarmScreenActivity extends AppCompatActivity {
                     });
                 }
 
-                // Log notification
-                NotificationHelper.add(this,
-                        "⏰ " + originalTaskTitle,
-                        "Alarm action: " + action.toLowerCase() + " at "
-                                + formatCurrentTime(),
-                        "alarm");
+                // Log notification for Snooze/Pending
+                if (!"READY".equals(action)) {
+                    NotificationHelper.add(this,
+                            "⏰ " + originalTaskTitle,
+                            "Alarm action: " + action.toLowerCase() + " at "
+                                    + formatCurrentTime(),
+                            "alarm");
+                }
 
             } catch (Exception e) {
                 runOnUiThread(this::finish);
@@ -195,17 +190,28 @@ public class AlarmScreenActivity extends AppCompatActivity {
         item.isPending   = false;
         FocusDatabase.getInstance(this).actionDao().update(item);
 
+        // ── THE FIX: Award XP and Trigger Notification! ──
+        XPManager.XPResult xpResult;
+        if ("routines".equals(item.type)) {
+            xpResult = XPManager.onRoutineCompleted(this, item.id);
+        } else {
+            xpResult = XPManager.onTaskCompleted(this, item.id);
+        }
+
+        if (xpResult != null) {
+            String notifTitle = xpResult.leveledUp ? "🎉 LEVEL UP: " + xpResult.newTitle + "!" : "⚡ +" + xpResult.xpEarned + " XP Earned!";
+            String notifBody = xpResult.leveledUp ? "You reached Level " + xpResult.newLevel + " " + xpResult.newBadge + "!" : "Completed: " + item.title;
+            NotificationHelper.add(this, notifTitle, notifBody, "xp");
+        } else {
+            // If they already got XP for this today, just log the completion
+            NotificationHelper.add(this, "✅ " + item.title, "Task marked as completed.", "system");
+        }
+
         boolean isRepeating = item.repeatMode != null
                 && !item.repeatMode.isEmpty()
                 && !"None".equals(item.repeatMode);
 
         if (isRepeating) {
-            // ════════════════════════════════════════════
-            //   FIX: DO NOT insert a new ActionItem.
-            //   HomeFragment.observeProgressAndTimer()
-            //   will reset this item on the next day.
-            //   We only need to schedule the next alarm.
-            // ════════════════════════════════════════════
             scheduleNextAlarmOnly(item);
         }
 
@@ -215,7 +221,6 @@ public class AlarmScreenActivity extends AppCompatActivity {
         });
     }
 
-    // ── Schedule next alarm WITHOUT creating a new DB item ─
     private void scheduleNextAlarmOnly(ActionItem item) {
         try {
             Calendar cal = Calendar.getInstance();
@@ -251,7 +256,6 @@ public class AlarmScreenActivity extends AppCompatActivity {
         } catch (Exception ignored) {}
     }
 
-    // ── Standard alarm scheduling (for snooze, task repeat) ──
     private void scheduleAlarmForItem(ActionItem item) {
         try {
             AlarmManager am = (AlarmManager) getSystemService(ALARM_SERVICE);

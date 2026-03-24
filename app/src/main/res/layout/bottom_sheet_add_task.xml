@@ -1,376 +1,338 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/bottomSheetRoot"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="#0A0A15"
-    android:orientation="vertical"
-    android:paddingTop="12dp"
-    android:paddingBottom="32dp"
-    android:paddingHorizontal="24dp">
-
-    <View
-        android:layout_width="48dp"
-        android:layout_height="5dp"
-        android:layout_gravity="center"
-        android:layout_marginBottom="24dp"
-        android:background="@drawable/circle_bg_light"
-        android:backgroundTint="#334263EB"/>
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="24dp"
-        android:text="Create New Flow"
-        android:textColor="#FFFFFF"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        android:letterSpacing="-0.02"/>
-
-    <com.google.android.material.textfield.TextInputLayout
-        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="12dp"
-        app:boxBackgroundColor="#0D1533"
-        app:boxCornerRadiusBottomEnd="16dp"
-        app:boxCornerRadiusBottomStart="16dp"
-        app:boxCornerRadiusTopEnd="16dp"
-        app:boxCornerRadiusTopStart="16dp"
-        app:boxStrokeColor="#4263EB"
-        app:boxStrokeWidth="1.5dp"
-        app:hintTextColor="#667799">
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/etTaskTitle"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="What do you want to focus on?"
-            android:textColor="#EEEEFF"
-            android:textColorHint="#556688"
-            android:inputType="textCapSentences"
-            android:padding="16dp"/>
-    </com.google.android.material.textfield.TextInputLayout>
+    app:cardBackgroundColor="#05050A"
+    app:cardCornerRadius="24dp"
+    app:cardElevation="0dp"
+    app:strokeWidth="1dp"
+    app:strokeColor="#1A2244">
 
     <LinearLayout
-        android:id="@+id/layoutCategoryRow"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:layout_marginBottom="12dp"
-        android:visibility="gone">
+        android:orientation="vertical"
+        android:padding="24dp">
 
         <com.google.android.material.card.MaterialCardView
-            android:id="@+id/cardCategoryChip"
+            android:layout_width="40dp"
+            android:layout_height="4dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="24dp"
+            app:cardBackgroundColor="#334263EB"
+            app:cardCornerRadius="2dp"
+            app:cardElevation="0dp"
+            app:strokeWidth="0dp"/>
+
+        <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:clickable="true"
-            android:focusable="true"
-            app:cardCornerRadius="20dp"
+            android:layout_marginBottom="16dp"
+            android:text="New Flow"
+            android:textColor="#FFFFFF"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            app:cardCornerRadius="16dp"
             app:cardElevation="0dp"
             app:strokeWidth="1.5dp"
-            app:strokeColor="#334263EB"
-            app:cardBackgroundColor="#0D1A33">
-            <LinearLayout
-                android:layout_width="wrap_content"
+            app:strokeColor="#1A2244"
+            app:cardBackgroundColor="#0AFFFFFF">
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etTaskTitle"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:paddingHorizontal="14dp"
-                android:paddingVertical="8dp">
-                <TextView
-                    android:id="@+id/tvCategoryEmoji"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="📌"
-                    android:textSize="14sp"/>
-                <TextView
-                    android:id="@+id/tvCategoryLabel"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
-                    android:text="General"
-                    android:textColor="#88AADD"
-                    android:textSize="12sp"
-                    android:textStyle="bold"/>
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="5dp"
-                    android:text="▾"
-                    android:textColor="#556688"
-                    android:textSize="10sp"/>
-            </LinearLayout>
+                android:background="@null"
+                android:hint="What do you want to focus on?"
+                android:textColor="#FFFFFF"
+                android:textColorHint="#556688"
+                android:textSize="15sp"
+                android:padding="16dp"
+                android:inputType="textCapSentences" />
         </com.google.android.material.card.MaterialCardView>
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="10dp"
-            android:text="auto-detected  ·  tap to change"
-            android:textColor="#445588"
-            android:textSize="10sp"/>
-    </LinearLayout>
-
-    <com.google.android.material.textfield.TextInputLayout
-        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="12dp"
-        app:boxBackgroundColor="#0D1533"
-        app:boxCornerRadiusBottomEnd="16dp"
-        app:boxCornerRadiusBottomStart="16dp"
-        app:boxCornerRadiusTopEnd="16dp"
-        app:boxCornerRadiusTopStart="16dp"
-        app:boxStrokeColor="#4263EB"
-        app:boxStrokeWidth="1.5dp"
-        app:hintTextColor="#667799">
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/etDescription"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Notes / Links (Optional)"
-            android:textColor="#EEEEFF"
-            android:textColorHint="#556688"
-            android:inputType="textMultiLine"
-            android:minLines="2"
-            android:gravity="top"
-            android:padding="16dp"/>
-    </com.google.android.material.textfield.TextInputLayout>
-
-    <com.google.android.material.textfield.TextInputLayout
-        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="12dp"
-        app:boxBackgroundColor="#0D1533"
-        app:boxCornerRadiusBottomEnd="16dp"
-        app:boxCornerRadiusBottomStart="16dp"
-        app:boxCornerRadiusTopEnd="16dp"
-        app:boxCornerRadiusTopStart="16dp"
-        app:boxStrokeColor="#4263EB"
-        app:boxStrokeWidth="1.5dp"
-        app:hintTextColor="#667799">
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/etDuration"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Duration (in minutes, e.g. 30)"
-            android:textColor="#EEEEFF"
-            android:textColorHint="#556688"
-            android:inputType="number"
-            android:padding="16dp"/>
-    </com.google.android.material.textfield.TextInputLayout>
-
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/cardDurationSuggestion"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
-        android:clickable="true"
-        android:focusable="true"
-        android:visibility="gone"
-        app:cardCornerRadius="12dp"
-        app:cardElevation="0dp"
-        app:strokeWidth="1.5dp"
-        app:strokeColor="#20C997"
-        app:cardBackgroundColor="#0D2A1A">
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:id="@+id/layoutCategoryRow"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:paddingHorizontal="14dp"
-            android:paddingVertical="8dp">
-            <TextView
-                android:id="@+id/tvDurationSuggestion"
+            android:layout_marginBottom="12dp"
+            android:visibility="gone">
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardCategoryChip"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="⏱  ~45 min"
-                android:textColor="#20C997"
-                android:textSize="11sp"
-                android:textStyle="bold"/>
-            <TextView
+                android:layout_marginEnd="8dp"
+                android:clickable="true"
+                android:focusable="true"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="0dp"
+                app:strokeWidth="0dp"
+                app:cardBackgroundColor="#1A4263EB">
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="6dp">
+                    <TextView
+                        android:id="@+id/tvCategoryEmoji"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🧠"
+                        android:textSize="12sp"
+                        android:layout_marginEnd="6dp"/>
+                    <TextView
+                        android:id="@+id/tvCategoryLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Deep Work"
+                        android:textColor="#7B9BFF"
+                        android:textSize="11sp"
+                        android:textStyle="bold"/>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardDurationSuggestion"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:text="Tap to use"
-                android:textColor="#1A5A3A"
-                android:textSize="10sp"/>
+                android:clickable="true"
+                android:focusable="true"
+                android:visibility="gone"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="0dp"
+                app:strokeWidth="1dp"
+                app:strokeColor="#3320C997"
+                app:cardBackgroundColor="#0A20C997">
+                <TextView
+                    android:id="@+id/tvDurationSuggestion"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="💡 Try 25m"
+                    android:textColor="#20C997"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="6dp"/>
+            </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
-    </com.google.android.material.card.MaterialCardView>
 
-    <com.google.android.material.card.MaterialCardView
-        android:layout_width="match_parent"
-        android:layout_height="52dp"
-        android:layout_marginBottom="16dp"
-        app:cardCornerRadius="26dp"
-        app:cardElevation="0dp"
-        app:strokeColor="#1A2244"
-        app:strokeWidth="1.5dp"
-        app:cardBackgroundColor="#080814">
-
-        <LinearLayout
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="horizontal"
-            android:padding="4dp">
-
-            <TextView
-                android:id="@+id/btnTypeRoutine"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:gravity="center"
-                android:text="ROUTINE"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:strokeWidth="1.5dp"
+            app:strokeColor="#1A2244"
+            app:cardBackgroundColor="#0AFFFFFF">
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etDescription"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@null"
+                android:hint="Notes or sub-tasks (optional)"
                 android:textColor="#FFFFFF"
-                android:textSize="11sp"
-                android:letterSpacing="0.08"
-                android:textStyle="bold"
-                android:background="@drawable/tab_selected_glow"/>
+                android:textColorHint="#556688"
+                android:textSize="14sp"
+                android:padding="16dp"
+                android:inputType="textCapSentences|textMultiLine"
+                android:maxLines="3"/>
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="20dp"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:strokeWidth="1.5dp"
+            app:strokeColor="#1A2244"
+            app:cardBackgroundColor="#0AFFFFFF">
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etDuration"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@null"
+                android:hint="Duration (in minutes, e.g. 30)"
+                android:textColor="#FFFFFF"
+                android:textColorHint="#556688"
+                android:textSize="15sp"
+                android:padding="16dp"
+                android:inputType="number" />
+        </com.google.android.material.card.MaterialCardView>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="24dp"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnTypeRoutine"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="55dp"
+                android:layout_marginEnd="8dp"
+                android:layout_weight="1"
+                android:text="Daily Routine"
+                android:textColor="#FFFFFF"
+                app:cornerRadius="14dp"
+                app:strokeColor="#4263EB" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnTypeTask"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="55dp"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:text="One-Time Task"
+                android:textColor="#8899BB"
+                app:cornerRadius="14dp"
+                app:strokeColor="#1A2244" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/btnPickTime"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:background="@drawable/rounded_input_bg"
+            android:backgroundTint="#0AFFFFFF"
+            android:gravity="center_vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:padding="16dp">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_timer"
+                app:tint="#7B9BFF" />
 
             <TextView
-                android:id="@+id/btnTypeTask"
                 android:layout_width="0dp"
-                android:layout_height="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
                 android:layout_weight="1"
-                android:gravity="center"
-                android:text="TASK"
-                android:textColor="#556688"
-                android:textSize="11sp"
-                android:letterSpacing="0.08"
-                android:textStyle="bold"
-                android:background="@android:color/transparent"/>
+                android:text="Time"
+                android:textColor="#8899BB"
+                android:textSize="16sp" />
+
+            <TextView
+                android:id="@+id/tvSelectedTime"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="10:00 AM"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold" />
         </LinearLayout>
-    </com.google.android.material.card.MaterialCardView>
 
-    <LinearLayout
-        android:id="@+id/btnPickTime"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="12dp"
-        android:background="@drawable/rounded_input_bg"
-        android:backgroundTint="#0D1533"
-        android:gravity="center_vertical"
-        android:padding="16dp"
-        android:clickable="true"
-        android:focusable="true">
-        <ImageView
-            android:layout_width="22dp"
-            android:layout_height="22dp"
-            android:src="@drawable/ic_timer"
-            app:tint="#4263EB"/>
-        <TextView
-            android:layout_width="0dp"
+        <LinearLayout
+            android:id="@+id/btnPickDate"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:layout_weight="1"
-            android:text="Time"
-            android:textColor="#88AADD"
-            android:textSize="15sp"/>
-        <TextView
-            android:id="@+id/tvSelectedTime"
-            android:layout_width="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:background="@drawable/rounded_input_bg"
+            android:backgroundTint="#0AFFFFFF"
+            android:gravity="center_vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:padding="16dp">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_calendar"
+                app:tint="#7B9BFF" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_weight="1"
+                android:text="Date"
+                android:textColor="#8899BB"
+                android:textSize="16sp" />
+
+            <TextView
+                android:id="@+id/tvSelectedDate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Today"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/btnPickRepeat"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="10:00 AM"
+            android:layout_marginBottom="32dp"
+            android:background="@drawable/rounded_input_bg"
+            android:backgroundTint="#0AFFFFFF"
+            android:gravity="center_vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:padding="16dp">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_home"
+                app:tint="#7B9BFF" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_weight="1"
+                android:text="Repeat"
+                android:textColor="#8899BB"
+                android:textSize="16sp" />
+
+            <TextView
+                android:id="@+id/tvSelectedRepeat"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="None"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnSave"
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:text="Save Flow"
             android:textColor="#FFFFFF"
-            android:textSize="15sp"
-            android:textStyle="bold"/>
+            android:textSize="16sp"
+            android:textStyle="bold"
+            app:backgroundTint="#4263EB"
+            app:cornerRadius="16dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnCancel"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:layout_marginTop="8dp"
+            android:text="Cancel"
+            android:textColor="#8899BB" />
+
     </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/btnPickDate"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="12dp"
-        android:background="@drawable/rounded_input_bg"
-        android:backgroundTint="#0D1533"
-        android:gravity="center_vertical"
-        android:padding="16dp"
-        android:clickable="true"
-        android:focusable="true"
-        android:visibility="gone">
-        <ImageView
-            android:layout_width="22dp"
-            android:layout_height="22dp"
-            android:src="@drawable/ic_calendar"
-            app:tint="#4263EB"/>
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:layout_weight="1"
-            android:text="Date"
-            android:textColor="#88AADD"
-            android:textSize="15sp"/>
-        <TextView
-            android:id="@+id/tvSelectedDate"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Today"
-            android:textColor="#FFFFFF"
-            android:textSize="15sp"
-            android:textStyle="bold"/>
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/btnPickRepeat"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="32dp"
-        android:background="@drawable/rounded_input_bg"
-        android:backgroundTint="#0D1533"
-        android:gravity="center_vertical"
-        android:padding="16dp"
-        android:clickable="true"
-        android:focusable="true"
-        android:visibility="visible">
-        <ImageView
-            android:layout_width="22dp"
-            android:layout_height="22dp"
-            android:src="@drawable/ic_calendar"
-            app:tint="#4263EB"/>
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:layout_weight="1"
-            android:text="Repeat"
-            android:textColor="#88AADD"
-            android:textSize="15sp"/>
-        <TextView
-            android:id="@+id/tvSelectedRepeat"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="None"
-            android:textColor="#FFFFFF"
-            android:textSize="15sp"
-            android:textStyle="bold"/>
-    </LinearLayout>
-
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/btnSave"
-        android:layout_width="match_parent"
-        android:layout_height="64dp"
-        android:text="Save to Planner"
-        android:textColor="#FFFFFF"
-        android:textSize="16sp"
-        android:letterSpacing="0.04"
-        android:textStyle="bold"
-        android:background="@drawable/tab_selected_glow"
-        app:backgroundTint="@null"
-        app:elevation="8dp"
-        app:rippleColor="#40FFFFFF"/>
-
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/btnCancel"
-        style="@style/Widget.MaterialComponents.Button.TextButton"
-        android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:layout_marginTop="8dp"
-        android:text="Cancel"
-        android:textColor="#556688"
-        android:textSize="14sp"/>
-
-</LinearLayout>
+</com.google.android.material.card.MaterialCardView>

@@ -101,19 +101,28 @@ public class GeofenceBroadcastReceiver extends BroadcastReceiver {
                 NOTIF_BASE + item.id, openApp,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
-        String cleanTitle = item.title.replace("📍 ", "");
-        String body = (item.description != null && !item.description.isEmpty()
-                && !item.description.startsWith("Arrive at"))
-                ? item.description
-                : "You've arrived at " + cleanTitle + ". Tap to view your reminders.";
+        // ── THE FIX: Extract exact Name and Note cleanly ──
+        String cleanTitle = item.title.replace("📍 ", "").trim();
+        String customNote = "";
+
+        if (item.description != null && !item.description.trim().isEmpty()) {
+            if (!item.description.startsWith("Arrive at")) {
+                customNote = item.description.trim();
+            }
+        }
+
+        String notifTitle = "📍 " + cleanTitle;
+        String notifBody = customNote.isEmpty()
+                ? "You have arrived at your destination!"
+                : "Reminder: " + customNote;
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.ic_dialog_map)
-                .setContentTitle("📍 You arrived: " + cleanTitle)
-                .setContentText(body)
+                .setContentTitle(notifTitle)
+                .setContentText(notifBody)
                 .setStyle(new NotificationCompat.BigTextStyle()
-                        .bigText(body)
-                        .setBigContentTitle("📍 You arrived: " + cleanTitle))
+                        .bigText(notifBody)
+                        .setBigContentTitle(notifTitle))
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setCategory(NotificationCompat.CATEGORY_REMINDER)
                 .setAutoCancel(true)
@@ -122,8 +131,8 @@ public class GeofenceBroadcastReceiver extends BroadcastReceiver {
 
         nm.notify(NOTIF_BASE + item.id, builder.build());
 
-        // ── THE FIX: Save to In-App Notifications ──
-        NotificationHelper.add(context, "📍 You arrived: " + cleanTitle, body, "geofence");
+        // Save cleanly to in-app notification center
+        NotificationHelper.add(context, notifTitle, notifBody, "geofence");
         Log.d(TAG, "Notification posted for: " + cleanTitle);
     }
 
@@ -147,8 +156,6 @@ public class GeofenceBroadcastReceiver extends BroadcastReceiver {
                 .setContentIntent(pi);
 
         nm.notify(geofenceId.hashCode(), builder.build());
-
-        // ── THE FIX: Save to In-App Notifications ──
         NotificationHelper.add(context, "📍 Location Reminder", "You've arrived at a saved location!", "geofence");
     }
 

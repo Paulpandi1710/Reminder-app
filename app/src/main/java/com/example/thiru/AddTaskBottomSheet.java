@@ -1,7 +1,11 @@
 package com.example.thiru;
 
+import android.app.AlarmManager;
 import android.app.DatePickerDialog;
+import android.app.PendingIntent;
 import android.app.TimePickerDialog;
+import android.content.Context;
+import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
@@ -33,7 +37,7 @@ public class AddTaskBottomSheet extends BottomSheetDialogFragment {
     // ── Views ─────────────────────────────────────────────
     private TextInputEditText etTaskTitle, etDescription, etDuration;
     private TextView tvSelectedTime, tvSelectedDate, tvSelectedRepeat;
-    private TextView btnTypeRoutine, btnTypeTask;
+    private MaterialButton btnTypeRoutine, btnTypeTask;
     private MaterialButton btnSave, btnCancel;
     private LinearLayout btnPickTime, btnPickDate, btnPickRepeat;
 
@@ -56,6 +60,19 @@ public class AddTaskBottomSheet extends BottomSheetDialogFragment {
     private static final int AI_DEBOUNCE_MS = 350;
 
     public AddTaskBottomSheet() {}
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        // Make the system bottom sheet transparent so our custom card corners show
+        BottomSheetDialog dialog = (BottomSheetDialog) getDialog();
+        if (dialog != null) {
+            View bottomSheet = dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
+            if (bottomSheet != null) {
+                bottomSheet.setBackgroundColor(Color.TRANSPARENT);
+            }
+        }
+    }
 
     @Nullable @Override
     public View onCreateView(@NonNull LayoutInflater inflater,
@@ -81,11 +98,9 @@ public class AddTaskBottomSheet extends BottomSheetDialogFragment {
                     .start();
         }
 
-        // Ensure background of the dialog is transparent so our rounded corners show
         if (getDialog() instanceof BottomSheetDialog) {
             BottomSheetBehavior<?> behavior = ((BottomSheetDialog) getDialog()).getBehavior();
             behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
-            ((View) view.getParent()).setBackgroundColor(Color.TRANSPARENT);
         }
 
         // ── Bind views ────────────────────────────────────
@@ -213,15 +228,31 @@ public class AddTaskBottomSheet extends BottomSheetDialogFragment {
             tvSelectedRepeat.setText("None");
         }
 
-        // ── PREMIUM NEON GLOW STYLING ───────────────────────────
-        int activeText = 0xFFFFFFFF;
-        int inactiveText = 0xFF556688;
+        // ── GLASSMORPHISM SELECTION STYLING ──
+        int activeStroke = Color.parseColor("#4263EB");
+        int activeText = Color.parseColor("#FFFFFF");
+        int inactiveStroke = Color.parseColor("#1A2244");
+        int inactiveText = Color.parseColor("#8899BB");
 
-        btnTypeRoutine.setTextColor(isRoutine ? activeText : inactiveText);
-        btnTypeTask.setTextColor(!isRoutine ? activeText : inactiveText);
-
-        btnTypeRoutine.setBackground(isRoutine ? ContextCompat.getDrawable(requireContext(), R.drawable.tab_selected_glow) : null);
-        btnTypeTask.setBackground(!isRoutine ? ContextCompat.getDrawable(requireContext(), R.drawable.tab_selected_glow) : null);
+        if (isRoutine) {
+            if (btnTypeRoutine != null) {
+                btnTypeRoutine.setStrokeColor(android.content.res.ColorStateList.valueOf(activeStroke));
+                btnTypeRoutine.setTextColor(activeText);
+            }
+            if (btnTypeTask != null) {
+                btnTypeTask.setStrokeColor(android.content.res.ColorStateList.valueOf(inactiveStroke));
+                btnTypeTask.setTextColor(inactiveText);
+            }
+        } else {
+            if (btnTypeTask != null) {
+                btnTypeTask.setStrokeColor(android.content.res.ColorStateList.valueOf(activeStroke));
+                btnTypeTask.setTextColor(activeText);
+            }
+            if (btnTypeRoutine != null) {
+                btnTypeRoutine.setStrokeColor(android.content.res.ColorStateList.valueOf(inactiveStroke));
+                btnTypeRoutine.setTextColor(inactiveText);
+            }
+        }
     }
 
     private void showCategoryChip(SmartCategoryEngine.Category cat) {
@@ -322,11 +353,64 @@ public class AddTaskBottomSheet extends BottomSheetDialogFragment {
 
         final ActionItem finalItem = item;
         Executors.newSingleThreadExecutor().execute(() -> {
-            FocusDatabase.getInstance(requireContext()).actionDao().insert(finalItem);
+            FocusDatabase db = FocusDatabase.getInstance(requireContext());
+            db.actionDao().insert(finalItem);
+
+            // ── THE FIX: Retrieve the item immediately to schedule its alarm ──
+            ActionItem insertedItem = db.actionDao().getTaskByTitle(finalItem.title);
+            if (insertedItem == null) insertedItem = finalItem;
+
+            final ActionItem itemToSchedule = insertedItem;
+
             new Handler(Looper.getMainLooper()).post(() -> {
-                if (isAdded()) dismiss();
+                if (isAdded()) {
+                    scheduleAlarmForItem(itemToSchedule);
+                    dismiss();
+                }
             });
         });
+    }
+
+    // ── THE FIX: Standard Alarm Scheduling Logic ──
+    private void scheduleAlarmForItem(ActionItem item) {
+        if (getContext() == null) return;
+        try {
+            AlarmManager am = (AlarmManager) getContext().getSystemService(Context.ALARM_SERVICE);
+            if (am == null) return;
+
+            Calendar exactTime = Calendar.getInstance();
+            if ("tasks".equals(item.type)) {
+                exactTime.set(item.year, item.month, item.day,
+                        item.hour, item.minute, 0);
+                exactTime.set(Calendar.MILLISECOND, 0);
+            } else {
+                exactTime.set(Calendar.HOUR_OF_DAY, item.hour);
+                exactTime.set(Calendar.MINUTE,      item.minute);
+                exactTime.set(Calendar.SECOND, 0);
+                exactTime.set(Calendar.MILLISECOND, 0);
+                if (exactTime.getTimeInMillis() <= System.currentTimeMillis())
+                    exactTime.add(Calendar.DAY_OF_YEAR, 1);
+            }
+
+            if (exactTime.getTimeInMillis() <= System.currentTimeMillis()) return;
+
+            Intent intent = new Intent(getContext(), AlarmReceiver.class);
+            intent.putExtra("TASK_TITLE", item.title);
+            intent.putExtra("IS_PRE_WARNING", false);
+
+            int reqCode = (int)(exactTime.getTimeInMillis() % Integer.MAX_VALUE);
+            PendingIntent pi = PendingIntent.getBroadcast(getContext(), reqCode, intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                if (am.canScheduleExactAlarms())
+                    am.setAlarmClock(new AlarmManager.AlarmClockInfo(exactTime.getTimeInMillis(), pi), pi);
+                else
+                    am.set(AlarmManager.RTC_WAKEUP, exactTime.getTimeInMillis(), pi);
+            } else {
+                am.setAlarmClock(new AlarmManager.AlarmClockInfo(exactTime.getTimeInMillis(), pi), pi);
+            }
+        } catch (Exception ignored) {}
     }
 
     private void updateTimeDisplay() {
